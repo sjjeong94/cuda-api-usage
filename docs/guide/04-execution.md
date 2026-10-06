@@ -11,6 +11,7 @@
 | [TMA](#t2-tma-tma-descriptor) | T2 | 메모리 접근 비용 | `cuTensorMapEncodeTiled` | **Driver** |
 | [Thread Block Cluster](#t2-cluster-thread-block-cluster) | T2 | SM 간 데이터 공유 | `cudaLaunchKernelEx`(cluster 속성) | Runtime |
 | [그래프 직접 조립·분석](#t2-graph-build-그래프-직접-조립분석) | T2 | 그래프 인스턴스 비용·메모리 | `cudaGraphAddKernelNode`, `cuGraphGetNodes` | 둘 다 |
+| [그래프 조건 노드](#t2-graph-cond-그래프-조건-노드) | T2 | 데이터 의존 분기로 인한 그래프 분할 | `cudaGraphConditionalHandleCreate` | Runtime |
 | [Cooperative launch](#t2-coop-cooperative-launch) | T2 | 커널 분할 | `cudaLaunchCooperativeKernel` | Runtime |
 | [호스트 콜백](#t2-hostfn-스트림-순서-호스트-콜백) | T2 | 호스트 동기화 대기 | `cudaLaunchHostFunc` | Runtime |
 
@@ -36,7 +37,7 @@
   - 입력은 고정 주소의 static buffer에 복사한 뒤 replay합니다 (`cudaMemcpyAsync`).
   - batch 크기마다 그래프를 따로 캡처하고, 실제 batch는 가장 가까운 크기로 padding합니다.
   - RNG 상태 초기화처럼 캡처할 수 없는 작업은 warmup에서 끝냅니다 (ExecuTorch `rand.cu`, warmup 3회 후 캡처).
-- **프로파일**: [PT]는 `torch.cuda.CUDAGraph`로 캡처하므로 vLLM, SGLang, TRT-LLM 본체에는 `cudaGraph*` 호출이 없습니다 (TRT-LLM은 테스트에만 있음). [SA]는 직접 구현합니다 (llama.cpp 기본 켜짐, MLX 기본 켜짐, ExecuTorch method별 opt-in).
+- **프로파일**: [PT]는 `torch.cuda.CUDAGraph`로 캡처하므로 vLLM, SGLang, TRT-LLM 본체에는 `cudaGraph*` 호출이 없습니다 (TRT-LLM은 테스트에만 있음). PyTorch 안에서는 `cudaStreamBeginCapture`(기본 `cudaStreamCaptureModeGlobal`) → `cudaStreamEndCapture` → `cudaGraphInstantiateWithFlags(AutoFreeOnLaunch | UseNodePriority)` → `cudaGraphLaunch`가 실행되고, 캐싱 할당기가 그래프 전용 private pool을 관리합니다 (`aten/src/ATen/cuda/CUDAGraph.cpp`, [evidence](../evidence/pytorch_cuda_api_usage.md#24-cuda-graph-atensrcatencudacudagraphcpp-c10cudacudagraphsc10utilsh)). PyTorch는 `cudaGraphExecUpdate`를 쓰지 않으므로, batch 크기마다 따로 인스턴스화합니다. [SA]는 직접 구현합니다 (llama.cpp 기본 켜짐, MLX 기본 켜짐, ExecuTorch method별 opt-in).
 - **결론**: **디코딩 지연을 낮추려면 사실상 필수**입니다. [PT]라면 PyTorch 기능을 쓰고, 아래의 캡처 인지 동작만 직접 처리하면 됩니다.
 
 ## T1-CAPAWARE 캡처 인지 동작
@@ -50,7 +51,8 @@
   | `cudaThreadExchangeStreamCaptureMode` | 캡처 중에도 버퍼를 할당할 수 있게 Relaxed 모드로 전환 | vLLM `custom_all_reduce.cu` |
   | `cudaStreamGetCaptureInfo` | 캡처 상태와 그래프 핸들 조회. 캡처 구간을 여러 조각으로 나누는 breakable graph | SGLang, TRT-LLM `breakable_cuda_graph.py` |
 
-- **결론**: **[PT] 프로파일에서도 직접 필요한** CUDA Graph 관련 API입니다. 특히 Custom AllReduce처럼 캡처 중에 IPC 버퍼를 다루는 코드는 이 API 없이는 그래프와 함께 쓸 수 없습니다.
+- **PyTorch 안에서**: 같은 API로 캡처 안전성을 지킵니다. `CUDAStreamCaptureModeGuard`(`cudaThreadExchangeStreamCaptureMode`)로 pinned 할당을 캡처 중에 허용하고, 캐싱 할당기는 `cudaStreamGetCaptureInfo` + `cudaGraphNodeGetDependencies`로 캡처 중 해제된 블록을 언제 재사용할지 판단합니다.
+- **결론**: **[PT] 프로파일에서도 직접 필요한** CUDA Graph 관련 API입니다. 특히 Custom AllReduce처럼 캡처 중에 IPC 버퍼를 다루는 코드는 이 API 없이는 그래프와 함께 쓸 수 없습니다. Python에서는 `torch.cuda.is_current_stream_capturing()`으로 확인할 수 있습니다.
 
 ## T1-PDL Programmatic Dependent Launch
 
@@ -116,7 +118,18 @@
 
 **(c) 그래프 메모리 추적** — ExecuTorch: `cudaGraphGetNodes` + `cudaGraphMemAllocNodeGetParams`/`cudaGraphMemFreeNodeGetParams`로 free 노드 없이 남는 할당을 찾아 그래프와 함께 해제
 
+**(d) 그래프 구조 덤프** — PyTorch: `torch.cuda.graphs`가 cuda-python으로 `cudaGraphGetNodes`, `cudaGraphGetEdges`, `cudaGraphGetRootNodes`, `cudaGraphNodeGetType`, `cuGraphKernelNodeGetParams` + `cuFuncGetName`(커널 이름) 등을 불러, 캡처한 그래프 구조를 보여 주고 노드를 프로파일러 이벤트와 연결합니다(`cudaGraphNodeGetToolsId`). (b)를 만들 때 출발점으로 쓸 수 있습니다.
+
 - **결론**: 기본 캡처로 충분하지 않을 때 고려합니다. 그래프 수가 많아 메모리·초기화 시간이 문제라면 (b), 캡처 비용 자체를 없애려면 (a)입니다.
+
+## T2-GRAPH-COND 그래프 조건 노드
+
+- **목적**: 그래프 안에 "조건이 참일 때만 실행"하거나 "조건이 거짓이 될 때까지 반복"하는 본문을 넣습니다. 조건 값은 GPU 메모리에서 커널이 정합니다. 데이터에 따라 실행 경로가 달라지는 부분 때문에 그래프를 나누거나 호스트로 돌아오지 않아도 됩니다.
+- **API**: `cudaGraphConditionalHandleCreate`(조건 핸들) → `cudaGraphAddNode`(조건 노드 추가) → `cudaStreamBeginCaptureToGraph`(본문 그래프로 캡처 전환) → `cudaStreamUpdateCaptureDependencies`(원래 캡처로 복귀). 커널 안에서는 `cudaGraphSetConditional`로 조건 값을 씁니다.
+- **근거**: PyTorch `CUDAGraph.begin_capture_to_conditional_node()` (`aten/src/ATen/cuda/CUDAGraph.cpp`). 다섯 서빙 프레임워크는 아직 쓰지 않습니다.
+- **서빙에서의 쓰임 (가능성)**: speculative decoding의 accept/reject 분기, 조기 종료, 가변 반복 횟수처럼 지금은 그래프를 끊고 호스트에서 판단하는 부분
+- **요구 사항**: 조건 노드를 지원하는 CUDA 12.x 이상 (정확한 최소 버전은 대상 툴킷에서 확인)
+- **결론**: [PT]라면 PyTorch API로 바로 시도해 볼 수 있습니다. 아직 서빙 프레임워크에서 검증된 패턴은 아닙니다.
 
 ## T2-COOP Cooperative launch
 

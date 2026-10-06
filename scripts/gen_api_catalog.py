@@ -17,7 +17,11 @@ FRAMEWORKS = [
     ("trtllm", "TRT-LLM"),
     ("ollama", "Ollama"),
     ("executorch", "ExecuTorch"),
+    ("pytorch", "PyTorch"),
 ]
+# PyTorch is the dependency of the [PT] frameworks, not a serving framework; its many
+# components go in a separate column instead of being packed into its usage cell.
+DEPENDENCY = "pytorch"
 COMPONENT_LABEL = {
     ("ollama", "ollama"): "O",
     ("ollama", "llama.cpp"): "L",
@@ -63,6 +67,9 @@ def main():
         entries = by_api[api].get(fw, [])
         if not entries:
             return ""
+        if fw == DEPENDENCY:
+            scopes = {scope for _, scope in entries}
+            return next(SCOPE_MARK[s] for s in SCOPE_MARK if s in scopes)
         parts = []
         for comp, scope in entries:
             label = COMPONENT_LABEL.get((fw, comp), "")
@@ -91,6 +98,7 @@ def main():
     w("")
     w("표기: ● 본체 코드에서 사용, t 테스트·CI·벤치마크에서만 사용, c 설정에 따라 사용, h HIP(ROCm) 빌드 전용.")
     w("Ollama의 O/L/M은 Ollama 본체/llama.cpp/MLX, ExecuTorch의 E/A는 ExecuTorch 런타임/AOTI 생성 코드입니다.")
+    w("PyTorch는 vLLM·SGLang·TRT-LLM이 의존하는 라이브러리라서 함께 실었습니다. PyTorch 열이 ●이면 본체 코드 어딘가에서 쓰고, 어느 구성 요소인지는 `PyTorch 위치` 열에 있습니다.")
     w("등급은 그 API가 쓰이는 기능 중 가장 낮은 등급입니다. 역할 `alt`는 같은 기능을 하는 다른 계층(Driver↔Runtime)의 API가 기본이라는 뜻입니다.")
     w("")
 
@@ -143,19 +151,20 @@ def main():
     w("")
 
     # ---- 4. all APIs ----
-    header = ["API", "종류", "등급", "기능", "역할"] + [label for _, label in FRAMEWORKS] + ["최소 CUDA", "하드웨어", "비고"]
+    header = ["API", "종류", "등급", "기능", "역할"] + [label for _, label in FRAMEWORKS] + ["PyTorch 위치", "최소 CUDA", "하드웨어", "비고"]
     for k, title in (("driver", "4. Driver API"), ("runtime", "5. Runtime API (호스트)"),
                      ("device", "6. Runtime API (디바이스 측)")):
         w(f"## {title}")
         w("")
         w("| " + " | ".join(header) + " |")
-        w("|" + "|".join(["---"] * 5 + [":---:"] * len(FRAMEWORKS) + ["---"] * 3) + "|")
+        w("|" + "|".join(["---"] * 5 + [":---:"] * len(FRAMEWORKS) + ["---"] * 4) + "|")
         apis = sorted((a for a in meta if kind(a) == k), key=lambda a: (TIER_ORDER.index(api_tier(a)), a.lower()))
         for a in apis:
             mrow = meta[a]
             feats = ", ".join(mrow["features"].split(";"))
             cells = [cell(a, fw) for fw, _ in FRAMEWORKS]
-            w("| " + " | ".join([f"`{a}`", k, api_tier(a), feats, mrow["role"], *cells,
+            pt_where = ", ".join(sorted({c for c, scope in by_api[a].get(DEPENDENCY, []) if scope == "prod"}))
+            w("| " + " | ".join([f"`{a}`", k, api_tier(a), feats, mrow["role"], *cells, pt_where,
                                  mrow["min_cuda"], mrow["arch"], mrow["note"]]) + " |")
         w("")
 

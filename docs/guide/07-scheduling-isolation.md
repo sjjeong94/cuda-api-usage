@@ -49,8 +49,9 @@
   | SGLang | **PD Multiplexing**: 한 GPU에서 prefill용과 decode용 SM을 나눠 동시에 실행 (`srt/multiplex/pdmux_context.py`가 `create_greenctx_stream_by_value(prefill_sm, decode_sm, gpu_id)` 호출) |
   | TRT-LLM | **Locality Domain**: GPU를 domain 두 개로 나눠 domain마다 SM 파티션·스트림·할당기(`cuMemAlloc`)를 둠 (`locality_domain_utils.cpp`) |
   | ExecuTorch | 직접 만들지 않음. 호출자가 green context 스트림을 넘기면 그 위에서 실행 (`CallerStreamGuard`) |
+  | PyTorch | `torch.cuda.green_contexts.GreenContext.create(...)` → `GreenContext.Stream()`. cuda-python으로 `cuDevSmResourceSplitByCount`, `cuGreenCtxCreate`, `cuGreenCtxStreamCreate`를 부르고, SM 수 외에 **work queue 공유 범위**(`CU_DEV_RESOURCE_TYPE_WORKQUEUE_CONFIG`)도 설정. green context마다 스트림 32개를 풀로 둠 |
 
-- **결론**: prefill-decode 간섭을 같은 GPU에서 해결하려면 필요합니다. PD를 GPU 단위로 분리(disaggregation)하는 대안과 비교해 선택하세요. **Runtime 대응 API가 없습니다.** 라이브러리 형태 엔진이라면 ExecuTorch처럼 호출자의 스트림을 받는 인터페이스만 두는 방법도 있습니다.
+- **결론**: prefill-decode 간섭을 같은 GPU에서 해결하려면 필요합니다. PD를 GPU 단위로 분리(disaggregation)하는 대안과 비교해 선택하세요. **Runtime 대응 API가 없습니다.** [PT] 엔진이라면 PyTorch의 `GreenContext`로 시작할 수 있습니다. 반환된 스트림이 `torch.cuda.Stream`이라 PyTorch 연산을 그대로 올릴 수 있습니다. 라이브러리 형태 엔진이라면 ExecuTorch처럼 호출자의 스트림을 받는 인터페이스만 두는 방법도 있습니다.
 
 ## T2-STREAMMEM 스트림 메모리 연산
 

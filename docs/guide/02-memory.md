@@ -24,7 +24,7 @@
   - 사용량 조회: `cudaMemPoolGetAttribute` (MLX는 Windows WDDM 계측에도 사용)
 - **폴백**: 풀을 지원하지 않는 디바이스는 `cudaMalloc`으로 (MLX). 전용 풀 생성이 실패하면 기본 풀로 (ExecuTorch).
 - **요구 사항**: CUDA 11.2+, 디바이스 속성 `cudaDevAttrMemoryPoolsSupported`
-- **프로파일**: [PT]는 PyTorch 캐싱 할당기가 같은 역할을 하므로 vLLM, SGLang은 직접 쓰지 않습니다. [SA]에서는 가장 간단한 고성능 할당기 선택지입니다.
+- **프로파일**: [PT]는 PyTorch 캐싱 할당기가 같은 역할을 하므로 vLLM, SGLang은 직접 쓰지 않습니다. PyTorch도 `PYTORCH_CUDA_ALLOC_CONF=backend:cudaMallocAsync`로 이 API 기반 백엔드를 고를 수 있습니다(`cudaDeviceGetDefaultMemPool`, `cudaMallocAsync`, `cudaMemPoolTrimTo`, `cudaMemPoolSetAccess`). [SA]에서는 가장 간단한 고성능 할당기 선택지입니다.
 - **근거**: MLX `allocator.cpp`, ExecuTorch `cuda_allocator.cpp`(`CudaAllocator`), TRT-LLM `runtime/cudaMemPool.cpp`, Thrust 임시 버퍼(ExecuTorch `sort.cu`)
 - **결론**: [SA] 엔진이라면 **할당기의 첫 번째 선택지**입니다. 직접 캐싱 할당기를 만들 필요가 없습니다. 주소를 유지한 채 메모리를 반납해야 한다면 T2-VMM으로 가야 합니다.
 
@@ -54,8 +54,8 @@
 - **선택 API**: `cuMemSetAccess`에 access descriptor를 여러 개 넘겨 여러 GPU에서 접근 (llama.cpp multi-GPU)
 - **폴백**: VMM 미지원 GPU에서는 `cudaMalloc` 기반 legacy 풀 (llama.cpp, `GGML_CUDA_NO_VMM`)
 - **요구 사항**: CUDA 10.2+, VMM 지원 디바이스. 할당 단위는 granularity(보통 2MB)의 배수
-- **프로파일**: [PT]에서는 VMM 영역을 `torch.cuda.MemPool`로 노출해 PyTorch 텐서와 연결합니다 (SGLang `kv_vmm_backing.py`).
-- **근거**: llama.cpp VMM 풀(기본 켜짐), SGLang KV cache VMM arena, TRT-LLM KV Cache Manager v2 GPU 계층
+- **프로파일**: [PT]에서는 VMM 영역을 `torch.cuda.MemPool`로 노출해 PyTorch 텐서와 연결합니다 (SGLang `kv_vmm_backing.py`). 단편화만 줄이면 된다면 PyTorch의 **expandable segments**(`PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`)로 충분합니다. 같은 VMM 시퀀스로 캐싱 할당기의 세그먼트를 끝으로 늘립니다. 다만 주소 범위를 직접 제어하거나, 메모리를 반납하거나, 다른 프로세스와 공유하려면 직접 구현해야 합니다.
+- **근거**: llama.cpp VMM 풀(기본 켜짐), SGLang KV cache VMM arena, TRT-LLM KV Cache Manager v2 GPU 계층, PyTorch expandable segments (`c10/cuda/CUDACachingAllocator.cpp`)
 - **결론**: "**최대 크기를 모르는 버퍼를 포인터를 바꾸지 않고 키워야 할 때**" Driver API가 필요합니다. CUDA Graph가 캡처한 포인터를 그대로 유지해야 하는 엔진에서 특히 가치가 큽니다.
 
 ## T2-SLEEP Sleep / Wake
@@ -69,7 +69,7 @@
   - 멀티캐스트 객체 재바인딩: `cuMulticastBindMem`, `cuMulticastUnbind` (TRT-LLM, [T3-NVLS](06-multi-gpu.md))
   - 컨텍스트 준비: `cuCtxGetCurrent`, `cuDevicePrimaryCtxRetain`, `cuCtxSetCurrent` (vLLM, 할당기가 컨텍스트 없는 스레드에서 불릴 수 있어서)
 - **설계 포인트**: 할당마다 태그를 달아(가중치 / KV 등) 무엇을 백업하고 무엇을 버릴지 고릅니다 (TRT-LLM `sleep(sleep_tags)`). KV처럼 버려도 되는 메모리는 백업 없이 해제만 하면 됩니다.
-- **프로파일**: [PT]에서는 PyTorch의 pluggable allocator로 VMM 할당기를 꽂습니다 (vLLM `CuMemAllocator`).
+- **프로파일**: PyTorch에는 이 기능이 없습니다. [PT]에서는 VMM 할당기를 직접 만들어 `CUDAPluggableAllocator` + `torch.cuda.MemPool`로 꽂습니다 (vLLM `CuMemAllocator`, [09](09-pytorch-dependency.md#24-자체-할당기는-pytorch에-연결하세요)).
 - **근거**: vLLM `csrc/cumem_allocator.cpp`, TRT-LLM `runtime/virtualMemory.{h,cpp}`(`CUDAVirtualMemoryChunk`)
 - **결론**: RL 프레임워크와 연동할 서빙 엔진이라면 필요합니다. **Runtime API만으로는 만들 수 없습니다**(`cudaFree` 후 `cudaMalloc`은 주소를 보장하지 않음).
 
@@ -87,6 +87,7 @@
 - **근거**
   - SGLang: 멀티모달 feature를 tokenizer 프로세스에서 scheduler로 무복사 전달(`--mm-feature-transport=cuda_vmm`), DWDP 전문가 가중치 공유, Custom AllReduce v2
   - TRT-LLM: NVLS·UserBuffers, MNNVL, DWDP
+  - PyTorch: expandable segment를 다른 프로세스와 공유(POSIX fd·FABRIC), symmetric memory(`torch.distributed._symmetric_memory`)의 버퍼 교환, `isFabricSupported()`(FABRIC 핸들로 작은 할당을 export·import해 보는 방식의 지원 확인)
 - **결론**: legacy IPC(`cudaIpc*`, [T1-IPC](06-multi-gpu.md))는 `cudaMalloc` 메모리를 같은 노드에서만 공유합니다. **VMM 메모리 공유, 노드 간 공유, 멀티캐스트**가 필요하면 이 Driver API가 필요합니다.
 
 ## T2-UVM Unified (managed) memory

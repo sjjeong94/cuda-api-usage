@@ -75,6 +75,7 @@
 
 - **요구 사항**: CUDA 12.1+, NVSwitch 시스템(HGX H100/H200/B200 등)
 - **근거**: TRT-LLM `runtime/mcastDeviceMemory.cpp`, `ipcNvlsMemory.cu`, UserBuffers(`userbuffers-host.cpp`, GEMM과 통신 겹치기). SGLang은 FlashInfer AllReduce fusion을 쓰기 전에 `cuMulticastGetGranularity`로 지원 여부만 점검합니다.
+- **PyTorch**: `torch.distributed._symmetric_memory`(CUDA 백엔드, `CUDASymmetricMemory.cu`)가 같은 시퀀스로 멀티캐스트 버퍼를 만듭니다. 지원 여부는 세 가지로 확인합니다: CUDA 12.3 이상으로 빌드했는지(컴파일 시점), `cuMulticastCreate` 심볼이 있는지(드라이버 535 이상), `CU_DEVICE_ATTRIBUTE_MULTICAST_SUPPORTED` 값. signal pad는 `cuMemsetD32Async`로 초기화하고 `cuStreamWriteValue32`로 씁니다. [PT] 엔진이라면 직접 구현하기 전에 이 기능을 먼저 검토할 만합니다.
 - **결론**: NVSwitch 시스템에서 TP AllReduce를 극한까지 줄이려면 필요합니다. **Runtime 대응 API가 없습니다.**
 
 ## T3-MNNVL MNNVL fabric 메모리

@@ -18,6 +18,7 @@ cudaDeviceGetPCIBusId,T0-CAP;T3-LINKAWARE,primary,,,NVML 장치와 매칭 (TRT-L
 cudaDeviceGetStreamPriorityRange,T2-PRIO,primary,,,
 cudaDeviceGraphMemTrim,T1-GRAPH,primary,,,그래프 안 할당 메모리 반환·계측
 cudaDeviceReset,T0-DEV,primary,,,P2P 사전 테스트·sleep mode 복원 프로세스 정리
+cudaDeviceSetGraphMemAttribute,T1-GRAPH,primary,,,그래프 메모리 high watermark 초기화
 cudaDeviceSynchronize,T0-STREAM,primary,,,
 cudaDriverGetVersion,T0-CAP;T2-VERGATE,primary,,,
 cudaEventCreate,T0-STREAM,primary,,,
@@ -42,17 +43,28 @@ cudaGetErrorName,T0-ERR,primary,,,
 cudaGetErrorString,T0-ERR,primary,,,
 cudaGetKernel,T2-KLOAD;T3-LINKAWARE,primary,,,런타임 커널 핸들을 Driver로 실행 (TRT-LLM KV v2)
 cudaGetLastError,T0-ERR,primary,,,
+cudaGetSymbolAddress,T0-XFER,primary,,,__device__/__constant__ 심볼의 디바이스 주소 (cuBLAS device pointer mode 상수)
 cudaGraphAddChildGraphNode,T2-GRAPH-BUILD,primary,,,
 cudaGraphAddDependencies,T2-GRAPH-BUILD,primary,,,
 cudaGraphAddEmptyNode,T2-GRAPH-BUILD,primary,,,
 cudaGraphAddKernelNode,T2-GRAPH-BUILD,primary,,,
+cudaGraphAddMemAllocNode,T2-GRAPH-BUILD,primary,,,
+cudaGraphAddNode,T2-GRAPH-COND,primary,,,조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서)
 cudaGraphChildGraphNodeGetGraph,T2-GRAPH-BUILD,primary,,,
+cudaGraphConditionalHandleCreate,T2-GRAPH-COND,primary,,,조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서)
 cudaGraphCreate,T2-GRAPH-BUILD,primary,,,
 cudaGraphDebugDotPrint,AUX-DEBUG,primary,,,
 cudaGraphDestroy,T1-GRAPH,primary,,,
+cudaGraphEventRecordNodeGetEvent,T2-GRAPH-BUILD,primary,,,"캡처한 그래프 분석 (torch.cuda.graphs, cuda-python)"
+cudaGraphEventWaitNodeGetEvent,T2-GRAPH-BUILD,primary,,,"캡처한 그래프 분석 (torch.cuda.graphs, cuda-python)"
 cudaGraphExecDestroy,T1-GRAPH,primary,,,
+cudaGraphExecGetId,T2-GRAPH-BUILD,primary,,,"캡처한 그래프 분석 (torch.cuda.graphs, cuda-python)"
 cudaGraphExecUpdate,T1-GRAPH,primary,,,
+cudaGraphGetEdges,T2-GRAPH-BUILD,primary,,,"캡처한 그래프 분석 (torch.cuda.graphs, cuda-python)"
+cudaGraphGetId,T2-GRAPH-BUILD,primary,,,"캡처한 그래프 분석 (torch.cuda.graphs, cuda-python)"
 cudaGraphGetNodes,T2-GRAPH-BUILD,primary,,,
+cudaGraphGetRootNodes,T2-GRAPH-BUILD,primary,,,"캡처한 그래프 분석 (torch.cuda.graphs, cuda-python)"
+cudaGraphHostNodeGetParams,T2-GRAPH-BUILD,primary,,,"캡처한 그래프 분석 (torch.cuda.graphs, cuda-python)"
 cudaGraphInstantiate,T1-GRAPH,primary,,,
 cudaGraphInstantiateWithFlags,T1-GRAPH,primary,11.4,,
 cudaGraphKernelNodeGetAttribute,T2-GRAPH-BUILD,primary,,,
@@ -61,14 +73,20 @@ cudaGraphKernelNodeSetAttribute,T2-GRAPH-BUILD,primary,,,
 cudaGraphLaunch,T1-GRAPH,primary,,,
 cudaGraphMemAllocNodeGetParams,T2-GRAPH-BUILD,primary,,,
 cudaGraphMemFreeNodeGetParams,T2-GRAPH-BUILD,primary,,,
+cudaGraphNodeGetDependencies,T2-GRAPH-BUILD,primary,,,캡처 중 블록 재사용 판단 (CUDACachingAllocator)
+cudaGraphNodeGetDependentNodes,T2-GRAPH-BUILD,primary,,,"캡처한 그래프 분석 (torch.cuda.graphs, cuda-python)"
+cudaGraphNodeGetToolsId,AUX-PROF,primary,,,그래프 노드와 프로파일러 이벤트 연결
 cudaGraphNodeGetType,T2-GRAPH-BUILD,primary,,,
+cudaGraphRetainUserObject,T1-GRAPH,primary,,,리소스 수명을 그래프에 묶음
 cudaGridDependencySynchronize,T1-PDL,primary,,SM90+,디바이스 측 API
 cudaHostAlloc,T0-XFER;T1-ZEROCOPY;T3-PCIEAR,primary,,,cudaHostAllocMapped로 mapped pinned 메모리
 cudaHostGetDevicePointer,T1-ZEROCOPY;T3-PCIEAR,primary,,,
 cudaHostRegister,T0-XFER,primary,,,
 cudaHostUnregister,T0-XFER,primary,,,
 cudaIpcCloseMemHandle,T1-IPC,primary,,,
+cudaIpcGetEventHandle,T1-IPC,primary,,,프로세스 간 이벤트 공유 (torch.multiprocessing)
 cudaIpcGetMemHandle,T1-IPC,primary,,,
+cudaIpcOpenEventHandle,T1-IPC,primary,,,프로세스 간 이벤트 공유 (torch.multiprocessing)
 cudaIpcOpenMemHandle,T1-IPC,primary,,,
 cudaLaunchCooperativeKernel,T2-COOP,primary,,,
 cudaLaunchHostFunc,T2-HOSTFN,primary,,,
@@ -93,6 +111,7 @@ cudaMemGetInfo,T0-MEMINFO,primary,,,
 cudaMemPoolCreate,T1-POOL,primary,11.2,,
 cudaMemPoolDestroy,T1-POOL,primary,11.2,,
 cudaMemPoolGetAttribute,T1-POOL,primary,11.2,,
+cudaMemPoolSetAccess,T1-POOL;T1-P2P,primary,11.2,,메모리 풀을 다른 GPU에서 접근
 cudaMemPoolSetAttribute,T1-POOL,primary,11.2,,
 cudaMemPoolTrimTo,T1-POOL,primary,11.2,,
 cudaMemPrefetchAsync,T2-UVM,primary,,,
@@ -111,18 +130,23 @@ cudaSetDevice,T0-DEV,primary,,,
 cudaSetDeviceFlags,T0-DEV,primary,,,cudaDeviceScheduleSpin으로 동기화 지연 감소 (llama.cpp)
 cudaStreamAddCallback,T2-HOSTFN,primary,,,
 cudaStreamBeginCapture,T1-GRAPH,primary,,,
+cudaStreamBeginCaptureToGraph,T2-GRAPH-COND,primary,,,조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서)
 cudaStreamCreate,T0-STREAM,primary,,,
 cudaStreamCreateWithFlags,T0-STREAM,primary,,,
 cudaStreamCreateWithPriority,T2-PRIO,primary,,,
 cudaStreamDestroy,T0-STREAM,primary,,,
 cudaStreamEndCapture,T1-GRAPH,primary,,,
 cudaStreamGetCaptureInfo,T1-CAPAWARE,primary,,,
+cudaStreamGetPriority,T2-PRIO,primary,,,
 cudaStreamIsCapturing,T1-CAPAWARE,primary,,,
 cudaStreamQuery,T0-STREAM,primary,,,
 cudaStreamSynchronize,T0-STREAM,primary,,,
+cudaStreamUpdateCaptureDependencies,T2-GRAPH-COND,primary,,,조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서)
 cudaStreamWaitEvent,T0-STREAM,primary,,,
 cudaThreadExchangeStreamCaptureMode,T1-CAPAWARE,primary,,,
 cudaTriggerProgrammaticLaunchCompletion,T1-PDL,primary,,SM90+,디바이스 측 API
+cudaUserObjectCreate,T1-GRAPH,primary,,,리소스 수명을 그래프에 묶음
+cudaUserObjectRelease,T1-GRAPH,primary,,,리소스 수명을 그래프에 묶음
 cuDeviceGet,T2-DRVDETECT,primary,,,
 cuDeviceGetAttribute,T2-DRVDETECT;T2-VMM-POOL;T3-NVLS;T3-MNNVL,primary,,,VMM·멀티캐스트·fabric 지원 여부 확인
 cuDeviceGetCount,T2-DRVDETECT,primary,,,
@@ -130,6 +154,7 @@ cuDeviceGetDevResource,T2-GREEN,primary,12.4,,
 cuDeviceGetName,T2-DRVDETECT,primary,,,
 cuDeviceGetPCIBusId,T2-DRVDETECT,primary,,,
 cuDeviceGetUuid_v2,T2-DRVDETECT,primary,,,
+cuDevicePrimaryCtxGetState,T2-CTX,primary,,,primary context가 이미 있는지 확인 (PyTorch lazy init)
 cuDevicePrimaryCtxRetain,T2-CTX,primary,,,
 cuDeviceTotalMem,T2-DRVDETECT,primary,,,
 cuDevResourceGenerateDesc,T2-GREEN,primary,12.4,,
@@ -143,7 +168,9 @@ cuEventQuery,T0-STREAM,alt,,,
 cuEventRecord,T0-STREAM,alt,,,
 cuEventSynchronize,T0-STREAM,alt,,,
 cuFuncGetAttribute,T2-KLOAD,primary,,,CUfunction의 smem·속성
+cuFuncGetName,AUX-DEBUG,primary,,,그래프 노드의 커널 이름 조회 (torch.cuda.graphs)
 cuFuncSetAttribute,T2-KLOAD,primary,,,CUfunction의 smem·속성
+cuFuncSetCacheConfig,T2-KLOAD,primary,,,L1/smem 분할 설정 (Inductor static launcher)
 cuGetErrorName,T0-ERR,alt,,,
 cuGetErrorString,T0-ERR,alt,,,
 cuGetProcAddress,T2-VERGATE,primary,,,
@@ -183,6 +210,7 @@ cuLogicalEndpointIdReserve,T3-LE,primary,13.4,NVSwitch fabric + IMEX,cuGetProcAd
 cuLogicalEndpointImport,T3-LE,primary,13.4,NVSwitch fabric + IMEX,cuGetProcAddress로 해석
 cuLogicalEndpointQuery,T3-LE,primary,13.4,NVSwitch fabric + IMEX,cuGetProcAddress로 해석
 cuLogicalEndpointUnbind,T3-LE,primary,13.4,NVSwitch fabric + IMEX,cuGetProcAddress로 해석
+cuLogsRegisterCallback,T0-ERR,alt,12.9,,드라이버 에러 로그 콜백 (c10 CUDAException)
 cuMemAddressFree,T2-VMM-POOL;T2-SLEEP;T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,VMM 공통 시퀀스
 cuMemAddressReserve,T2-VMM-POOL;T2-SLEEP;T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,VMM 공통 시퀀스
 cuMemAlloc,T0-ALLOC,alt,,,
@@ -211,6 +239,7 @@ cuMemRelease,T2-VMM-POOL;T2-SLEEP;T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,VM
 cuMemRetainAllocationHandle,T2-VMM-SHARE,primary,11.0,,포인터가 VMM 할당인지 판별
 cuMemSetAccess,T2-VMM-POOL;T2-SLEEP;T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,VMM 공통 시퀀스
 cuMemsetD32,T0-ALLOC,alt,,,
+cuMemsetD32Async,T0-ALLOC,alt,,,symmetric memory signal pad 초기화
 cuMemsetD8,T0-ALLOC,alt,,,
 cuMemsetD8Async,T0-ALLOC,alt,,,
 cuMemUnmap,T2-VMM-POOL;T2-SLEEP;T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,VMM 공통 시퀀스
@@ -225,6 +254,7 @@ cuMulticastBindMem,T3-NVLS,primary,12.1,NVSwitch (NVLS),
 cuMulticastCreate,T3-NVLS,primary,12.1,NVSwitch (NVLS),
 cuMulticastGetGranularity,T3-NVLS,primary,12.1,NVSwitch (NVLS),
 cuMulticastUnbind,T3-NVLS,primary,12.1,NVSwitch (NVLS),
+cuOccupancyMaxActiveBlocksPerMultiprocessor,T1-OCC,alt,,,JIT 커널(CUfunction)용 (TorchScript fuser)
 cuOccupancyMaxPotentialBlockSize,T1-OCC;T2-KLOAD,alt,,,JIT 커널(CUfunction)용
 cuOccupancyMaxPotentialClusterSize,T2-CLUSTER,alt,11.8,SM90+,
 cuPointerGetAttribute,T1-IPC,primary,,,CU_POINTER_ATTRIBUTE_RANGE_START_ADDR로 캐싱 할당기 블록의 base 주소

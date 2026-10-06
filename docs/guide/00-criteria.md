@@ -1,6 +1,6 @@
 # 00. 기준과 읽는 법
 
-이 가이드는 **LLM 서빙 프레임워크를 만들 때 어떤 CUDA Driver·Runtime API가 필요한지**를 기능 단위로 정리합니다. 모든 결론은 "기능 X를 만들려면 API Y가 필요하다" 형식이고, 근거는 vLLM, SGLang, TensorRT-LLM, Ollama(llama.cpp·MLX), ExecuTorch의 소스 분석([`docs/evidence/`](../evidence/))입니다.
+이 가이드는 **LLM 서빙 프레임워크를 만들 때 어떤 CUDA Driver·Runtime API가 필요한지**를 기능 단위로 정리합니다. 모든 결론은 "기능 X를 만들려면 API Y가 필요하다" 형식이고, 근거는 vLLM, SGLang, TensorRT-LLM, Ollama(llama.cpp·MLX), ExecuTorch의 소스 분석([`docs/evidence/`](../evidence/))입니다. 이 중 세 프레임워크가 의존하는 **PyTorch**도 함께 분석했습니다. PyTorch는 서빙 프레임워크가 아니라 의존 라이브러리이므로, 등급 판단에 쓰는 "프레임워크 수"에는 넣지 않았습니다.
 
 ---
 
@@ -24,10 +24,10 @@
 
 | 프로파일 | 대표 | 프레임워크 대신 맡아 주는 것 | 직접 다루는 범위 |
 |---|---|---|---|
-| **[PT] PyTorch 기반** | vLLM, SGLang, TensorRT-LLM | 캐싱 할당기, 스트림·이벤트 객체, CUDA Graph 캡처 (`torch.cuda.*`) | T0 일부 + T1~T3 |
+| **[PT] PyTorch 기반** | vLLM, SGLang, TensorRT-LLM | 캐싱 할당기, pinned 할당기, 스트림·이벤트 객체, CUDA Graph 캡처 (`torch.cuda.*`) | 자기 커널 launch + PyTorch에 없는 T1~T3 |
 | **[SA] 독립형** | llama.cpp, MLX, ExecuTorch | 없음 | T0 전체 + 스트림·이벤트·그래프·할당기 |
 
-각 기능 카드에는 프로파일별로 무엇을 직접 해야 하는지 적었습니다.
+각 기능 카드에는 프로파일별로 무엇을 직접 해야 하는지 적었습니다. PyTorch가 기능별로 정확히 무엇을 제공하고 무엇을 남기는지는 [09-pytorch-dependency.md](09-pytorch-dependency.md)에 따로 정리했습니다.
 
 ## 3. 기능 카드 형식
 
@@ -67,8 +67,9 @@
   | TensorRT-LLM | `main` `5cf80d6` (2026-10-06) |
   | Ollama | `main` `8a971df` (2026-10-05), llama.cpp `b11351`, MLX `264c14f` |
   | ExecuTorch | `main` `91b2e90` (2026-10-06), PyTorch `v2.14.0` AOTInductor |
+  | PyTorch (의존 라이브러리) | `v2.14.0` `2b3ec34` (2026-08-26) |
 
-- **방법 차이**: TensorRT-LLM만 cuda-python 바인딩 선언과 교차 검증했고, 나머지는 grep 결과를 직접 검토했습니다. 방법론을 통일한 재집계는 아직 하지 않았습니다.
+- **방법 차이**: TensorRT-LLM과 PyTorch는 cuda-python `8c66b43` 바인딩 선언과 교차 검증했고, 나머지는 grep 결과를 직접 검토했습니다. PyTorch는 이번에 직접 스캔해서 CSV를 만들었고, 다른 다섯 프로젝트는 evidence 문서의 목록을 옮겼습니다. 다섯 프로젝트에 대한 방법론 통일 재집계는 아직 하지 않았습니다.
 - **집계 불일치**: vLLM evidence 문서는 Driver 18개, Runtime 38개라고 적었지만, 문서에 나열된 API를 세면 Driver 16개, Runtime 36개(+ 테스트 전용 프로파일러 2개)입니다. CSV는 나열된 목록을 따랐습니다.
 - **최소 CUDA 버전**: `api_meta.csv`의 `min_cuda` 값 중 12.8(배치 복사)과 13.4(Logical Endpoint)는 evidence 문서에 나온 값이고, 나머지는 CUDA Toolkit 문서 기준입니다. 빈칸은 확인하지 않은 항목입니다. 실제 대상 툴킷의 헤더로 다시 확인하세요.
 - **TensorRT-LLM의 소스 없는 정적 라이브러리**(Git LFS)는 분석하지 못했습니다.
