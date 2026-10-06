@@ -1,0 +1,237 @@
+api,features,role,min_cuda,arch,note
+cuCtxCreate,T2-CTX,primary,,,
+cuCtxFromGreenCtx,T2-GREEN,primary,12.4,,
+cuCtxGetCurrent,T2-CTX,primary,,,
+cuCtxGetDevice,T2-CTX,primary,,,
+cuCtxGetId,T2-KLOAD,primary,,,컨텍스트별 모듈 캐시 키
+cuCtxPopCurrent,T2-CTX,primary,,,
+cuCtxPushCurrent,T2-CTX,primary,,,
+cuCtxSetCurrent,T2-CTX,primary,,,
+cuCtxSynchronize,T0-STREAM,alt,,,
+cudaDeviceCanAccessPeer,T1-P2P,primary,,,
+cudaDeviceEnablePeerAccess,T1-P2P,primary,,,
+cudaDeviceGetAttribute,T0-CAP,primary,,,
+cudaDeviceGetDefaultMemPool,T1-POOL,primary,11.2,,
+cudaDeviceGetGraphMemAttribute,T1-GRAPH,primary,,,그래프 안 할당 메모리 반환·계측
+cudaDeviceGetMemPool,T1-POOL,primary,11.2,,
+cudaDeviceGetPCIBusId,T0-CAP;T3-LINKAWARE,primary,,,NVML 장치와 매칭 (TRT-LLM KV v2)
+cudaDeviceGetStreamPriorityRange,T2-PRIO,primary,,,
+cudaDeviceGraphMemTrim,T1-GRAPH,primary,,,그래프 안 할당 메모리 반환·계측
+cudaDeviceReset,T0-DEV,primary,,,P2P 사전 테스트·sleep mode 복원 프로세스 정리
+cudaDeviceSynchronize,T0-STREAM,primary,,,
+cudaDriverGetVersion,T0-CAP;T2-VERGATE,primary,,,
+cudaEventCreate,T0-STREAM,primary,,,
+cudaEventCreateWithFlags,T0-STREAM,primary,,,
+cudaEventDestroy,T0-STREAM,primary,,,
+cudaEventElapsedTime,AUX-PROF,primary,,,
+cudaEventQuery,T0-STREAM,primary,,,
+cudaEventRecord,T0-STREAM,primary,,,
+cudaEventRecordWithFlags,T0-STREAM,primary,,,
+cudaEventSynchronize,T0-STREAM,primary,,,
+cudaFree,T0-ALLOC,primary,,,
+cudaFreeAsync,T1-POOL,primary,11.2,,
+cudaFreeHost,T0-XFER,primary,,,
+cudaFuncGetAttributes,T0-LAUNCH,primary,,,
+cudaFuncSetAttribute,T0-LAUNCH,primary,,,
+cudaGetDevice,T0-DEV,primary,,,
+cudaGetDeviceCount,T0-DEV,primary,,,
+cudaGetDeviceProperties,T0-CAP,primary,,,
+cudaGetDriverEntryPoint,T2-TMA;T2-VERGATE,primary,,,Runtime에서 Driver 심볼 해석 (주로 cuTensorMapEncodeTiled). ByVersion은 12.5+
+cudaGetDriverEntryPointByVersion,T2-TMA;T2-VERGATE,primary,,,Runtime에서 Driver 심볼 해석 (주로 cuTensorMapEncodeTiled). ByVersion은 12.5+
+cudaGetErrorName,T0-ERR,primary,,,
+cudaGetErrorString,T0-ERR,primary,,,
+cudaGetKernel,T2-KLOAD;T3-LINKAWARE,primary,,,런타임 커널 핸들을 Driver로 실행 (TRT-LLM KV v2)
+cudaGetLastError,T0-ERR,primary,,,
+cudaGraphAddChildGraphNode,T2-GRAPH-BUILD,primary,,,
+cudaGraphAddDependencies,T2-GRAPH-BUILD,primary,,,
+cudaGraphAddEmptyNode,T2-GRAPH-BUILD,primary,,,
+cudaGraphAddKernelNode,T2-GRAPH-BUILD,primary,,,
+cudaGraphChildGraphNodeGetGraph,T2-GRAPH-BUILD,primary,,,
+cudaGraphCreate,T2-GRAPH-BUILD,primary,,,
+cudaGraphDebugDotPrint,AUX-DEBUG,primary,,,
+cudaGraphDestroy,T1-GRAPH,primary,,,
+cudaGraphExecDestroy,T1-GRAPH,primary,,,
+cudaGraphExecUpdate,T1-GRAPH,primary,,,
+cudaGraphGetNodes,T2-GRAPH-BUILD,primary,,,
+cudaGraphInstantiate,T1-GRAPH,primary,,,
+cudaGraphInstantiateWithFlags,T1-GRAPH,primary,11.4,,
+cudaGraphKernelNodeGetAttribute,T2-GRAPH-BUILD,primary,,,
+cudaGraphKernelNodeGetParams,T2-GRAPH-BUILD,primary,,,
+cudaGraphKernelNodeSetAttribute,T2-GRAPH-BUILD,primary,,,
+cudaGraphLaunch,T1-GRAPH,primary,,,
+cudaGraphMemAllocNodeGetParams,T2-GRAPH-BUILD,primary,,,
+cudaGraphMemFreeNodeGetParams,T2-GRAPH-BUILD,primary,,,
+cudaGraphNodeGetType,T2-GRAPH-BUILD,primary,,,
+cudaGridDependencySynchronize,T1-PDL,primary,,SM90+,디바이스 측 API
+cudaHostAlloc,T0-XFER;T1-ZEROCOPY;T3-PCIEAR,primary,,,cudaHostAllocMapped로 mapped pinned 메모리
+cudaHostGetDevicePointer,T1-ZEROCOPY;T3-PCIEAR,primary,,,
+cudaHostRegister,T0-XFER,primary,,,
+cudaHostUnregister,T0-XFER,primary,,,
+cudaIpcCloseMemHandle,T1-IPC,primary,,,
+cudaIpcGetMemHandle,T1-IPC,primary,,,
+cudaIpcOpenMemHandle,T1-IPC,primary,,,
+cudaLaunchCooperativeKernel,T2-COOP,primary,,,
+cudaLaunchHostFunc,T2-HOSTFN,primary,,,
+cudaLaunchHostFunc_v2,T2-HOSTFN,primary,,,TRT-LLM nanobind hostfunc
+cudaLaunchKernel,T0-LAUNCH,primary,,,
+cudaLaunchKernelEx,T1-PDL;T2-CLUSTER,primary,11.8,,
+cudaLaunchKernelExC,T1-PDL;T2-CLUSTER,primary,11.8,,C 인터페이스 (attribute 배열 직접 전달)
+cudaLibraryLoadData,T2-KLOAD,alt,,,
+cudaMalloc,T0-ALLOC,primary,,,
+cudaMallocAsync,T1-POOL,primary,11.2,,
+cudaMallocFromPoolAsync,T1-POOL,primary,11.2,,
+cudaMallocHost,T0-XFER,primary,,,
+cudaMallocManaged,T2-UVM,primary,,,
+cudaMemAdvise,T2-UVM,primary,,,
+cudaMemcpy,T0-XFER,primary,,,
+cudaMemcpy2DAsync,T0-XFER,primary,,,
+cudaMemcpyAsync,T0-XFER,primary,,,
+cudaMemcpyBatchAsync,T1-BATCHCOPY,alt,12.8,,dlsym·함수 포인터로 해석 (SGLang)
+cudaMemcpyPeerAsync,T1-P2P,primary,,,
+cudaMemcpyToSymbol,T0-XFER,primary,,,constant memory 적재 (vLLM W4A8 LUT)
+cudaMemGetInfo,T0-MEMINFO,primary,,,
+cudaMemPoolCreate,T1-POOL,primary,11.2,,
+cudaMemPoolDestroy,T1-POOL,primary,11.2,,
+cudaMemPoolGetAttribute,T1-POOL,primary,11.2,,
+cudaMemPoolSetAttribute,T1-POOL,primary,11.2,,
+cudaMemPoolTrimTo,T1-POOL,primary,11.2,,
+cudaMemPrefetchAsync,T2-UVM,primary,,,
+cudaMemset,T0-ALLOC,primary,,,
+cudaMemsetAsync,T0-ALLOC,primary,,,
+cudaOccupancyAvailableDynamicSMemPerBlock,T1-OCC,primary,,,
+cudaOccupancyMaxActiveBlocksPerMultiprocessor,T1-OCC,primary,,,
+cudaOccupancyMaxActiveClusters,T2-CLUSTER,primary,11.8,SM90+,
+cudaOccupancyMaxPotentialBlockSize,T1-OCC,primary,,,
+cudaPeekAtLastError,T0-ERR,primary,,,
+cudaPointerGetAttributes,T0-XFER,primary,,,pinned·pageable·device 포인터 판별로 복사 경로 선택
+cudaProfilerStart,AUX-PROF,primary,,,
+cudaProfilerStop,AUX-PROF,primary,,,
+cudaRuntimeGetVersion,T0-CAP;T2-VERGATE,primary,,,
+cudaSetDevice,T0-DEV,primary,,,
+cudaSetDeviceFlags,T0-DEV,primary,,,cudaDeviceScheduleSpin으로 동기화 지연 감소 (llama.cpp)
+cudaStreamAddCallback,T2-HOSTFN,primary,,,
+cudaStreamBeginCapture,T1-GRAPH,primary,,,
+cudaStreamCreate,T0-STREAM,primary,,,
+cudaStreamCreateWithFlags,T0-STREAM,primary,,,
+cudaStreamCreateWithPriority,T2-PRIO,primary,,,
+cudaStreamDestroy,T0-STREAM,primary,,,
+cudaStreamEndCapture,T1-GRAPH,primary,,,
+cudaStreamGetCaptureInfo,T1-CAPAWARE,primary,,,
+cudaStreamIsCapturing,T1-CAPAWARE,primary,,,
+cudaStreamQuery,T0-STREAM,primary,,,
+cudaStreamSynchronize,T0-STREAM,primary,,,
+cudaStreamWaitEvent,T0-STREAM,primary,,,
+cudaThreadExchangeStreamCaptureMode,T1-CAPAWARE,primary,,,
+cudaTriggerProgrammaticLaunchCompletion,T1-PDL,primary,,SM90+,디바이스 측 API
+cuDeviceGet,T2-DRVDETECT,primary,,,
+cuDeviceGetAttribute,T2-DRVDETECT;T2-VMM-POOL;T3-NVLS;T3-MNNVL,primary,,,VMM·멀티캐스트·fabric 지원 여부 확인
+cuDeviceGetCount,T2-DRVDETECT,primary,,,
+cuDeviceGetDevResource,T2-GREEN,primary,12.4,,
+cuDeviceGetName,T2-DRVDETECT,primary,,,
+cuDeviceGetPCIBusId,T2-DRVDETECT,primary,,,
+cuDeviceGetUuid_v2,T2-DRVDETECT,primary,,,
+cuDevicePrimaryCtxRetain,T2-CTX,primary,,,
+cuDeviceTotalMem,T2-DRVDETECT,primary,,,
+cuDevResourceGenerateDesc,T2-GREEN,primary,12.4,,
+cuDevSmResourceSplit,T2-GREEN,primary,,,"TRT-LLM locality domain, cuGetProcAddress로 해석"
+cuDevSmResourceSplitByCount,T2-GREEN,primary,12.4,,
+cuDriverGetVersion,T2-DRVDETECT;T2-VERGATE,primary,,,
+cuEventCreate,T0-STREAM,alt,,,
+cuEventDestroy,T0-STREAM,alt,,,
+cuEventElapsedTime,AUX-PROF,primary,,,
+cuEventQuery,T0-STREAM,alt,,,
+cuEventRecord,T0-STREAM,alt,,,
+cuEventSynchronize,T0-STREAM,alt,,,
+cuFuncGetAttribute,T2-KLOAD,primary,,,CUfunction의 smem·속성
+cuFuncSetAttribute,T2-KLOAD,primary,,,CUfunction의 smem·속성
+cuGetErrorName,T0-ERR,alt,,,
+cuGetErrorString,T0-ERR,alt,,,
+cuGetProcAddress,T2-VERGATE,primary,,,
+cuGraphAddKernelNode,T2-GRAPH-BUILD;T2-KLOAD,alt,,,JIT 커널(CUfunction)을 그래프 노드로 (MLX)
+cuGraphChildGraphNodeGetGraph,T2-GRAPH-BUILD,alt,,,캡처한 그래프 분석·dedup (SGLang)
+cuGraphGetEdges,T2-GRAPH-BUILD,alt,,,캡처한 그래프 분석·dedup (SGLang)
+cuGraphGetNodes,T2-GRAPH-BUILD,alt,,,캡처한 그래프 분석·dedup (SGLang)
+cuGraphKernelNodeGetAttribute,T2-GRAPH-BUILD,alt,,,캡처한 그래프 분석·dedup (SGLang)
+cuGraphKernelNodeGetParams,T2-GRAPH-BUILD,alt,,,캡처한 그래프 분석·dedup (SGLang)
+cuGraphKernelNodeSetAttribute,T2-GRAPH-BUILD;T2-KLOAD,alt,,,JIT 커널(CUfunction)을 그래프 노드로 (MLX)
+cuGraphMemcpyNodeGetParams,T2-GRAPH-BUILD,alt,,,캡처한 그래프 분석·dedup (SGLang)
+cuGraphMemsetNodeGetParams,T2-GRAPH-BUILD,alt,,,캡처한 그래프 분석·dedup (SGLang)
+cuGraphNodeGetType,T2-GRAPH-BUILD,alt,,,캡처한 그래프 분석·dedup (SGLang)
+cuGreenCtxCreate,T2-GREEN,primary,12.4,,
+cuGreenCtxDestroy,T2-GREEN,primary,12.4,,
+cuGreenCtxGetDevResource,T2-GREEN,primary,12.4,,
+cuGreenCtxStreamCreate,T2-GREEN,primary,12.5,,cuGetProcAddress로 해석
+cuInit,T2-DRVDETECT,primary,,,
+cuKernelGetFunction,T2-KLOAD,primary,12.0,,context 독립 library API
+cuKernelGetName,T2-KLOAD,primary,12.0,,context 독립 library API
+cuKernelSetAttribute,T2-KLOAD,primary,12.0,,context 독립 library API
+cuLaunchHostFunc,T2-HOSTFN,alt,,,
+cuLaunchKernel,T2-KLOAD,primary,,,
+cuLaunchKernelEx,T2-KLOAD;T1-PDL;T2-CLUSTER,primary,12.0,,
+cuLibraryEnumerateKernels,T2-KLOAD,primary,12.0,,context 독립 library API
+cuLibraryGetGlobal,T2-KLOAD,primary,12.0,,context 독립 library API
+cuLibraryGetKernel,T2-KLOAD,primary,12.0,,context 독립 library API
+cuLibraryGetKernelCount,T2-KLOAD,primary,12.0,,context 독립 library API
+cuLibraryLoadData,T2-KLOAD,primary,12.0,,context 독립 library API
+cuLibraryUnload,T2-KLOAD,primary,12.0,,context 독립 library API
+cuLogicalEndpointBindMem,T3-LE,primary,13.4,NVSwitch fabric + IMEX,cuGetProcAddress로 해석
+cuLogicalEndpointCreate,T3-LE,primary,13.4,NVSwitch fabric + IMEX,cuGetProcAddress로 해석
+cuLogicalEndpointDestroy,T3-LE,primary,13.4,NVSwitch fabric + IMEX,cuGetProcAddress로 해석
+cuLogicalEndpointExport,T3-LE,primary,13.4,NVSwitch fabric + IMEX,cuGetProcAddress로 해석
+cuLogicalEndpointIdRelease,T3-LE,primary,13.4,NVSwitch fabric + IMEX,cuGetProcAddress로 해석
+cuLogicalEndpointIdReserve,T3-LE,primary,13.4,NVSwitch fabric + IMEX,cuGetProcAddress로 해석
+cuLogicalEndpointImport,T3-LE,primary,13.4,NVSwitch fabric + IMEX,cuGetProcAddress로 해석
+cuLogicalEndpointQuery,T3-LE,primary,13.4,NVSwitch fabric + IMEX,cuGetProcAddress로 해석
+cuLogicalEndpointUnbind,T3-LE,primary,13.4,NVSwitch fabric + IMEX,cuGetProcAddress로 해석
+cuMemAddressFree,T2-VMM-POOL;T2-SLEEP;T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,VMM 공통 시퀀스
+cuMemAddressReserve,T2-VMM-POOL;T2-SLEEP;T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,VMM 공통 시퀀스
+cuMemAlloc,T0-ALLOC,alt,,,
+cuMemcpyAsync,T0-XFER,alt,,,
+cuMemcpyBatchAsync,T1-BATCHCOPY,primary,12.8,,"cuGetProcAddress로 해석, 미지원 시 반복 복사 폴백"
+cuMemcpyDtoD,T0-XFER,alt,,,
+cuMemcpyDtoH,T0-XFER,alt,,,
+cuMemcpyDtoHAsync,T0-XFER,alt,,,
+cuMemcpyHtoD,T0-XFER,alt,,,
+cuMemcpyHtoDAsync,T0-XFER,alt,,,
+cuMemCreate,T2-VMM-POOL;T2-SLEEP;T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,VMM 공통 시퀀스
+cuMemExportToShareableHandle,T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,POSIX fd / FABRIC 핸들 (FABRIC은 IMEX 필요)
+cuMemFree,T0-ALLOC,alt,,,
+cuMemFreeHost,T0-XFER,alt,,,
+cuMemGetAddressRange,T2-VMM-SHARE;T3-MNNVL,primary,,,포인터가 속한 할당의 base·크기
+cuMemGetAllocationGranularity,T2-VMM-POOL;T2-SLEEP;T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,VMM 공통 시퀀스
+cuMemGetAllocationPropertiesFromHandle,T2-VMM-SHARE,primary,10.2,,
+cuMemGetInfo,T0-MEMINFO,alt,,,
+cuMemHostAlloc,T0-XFER,alt,,,
+cuMemHostGetDevicePointer,T1-ZEROCOPY,alt,,,
+cuMemHostRegister,T0-XFER,alt,,,
+cuMemHostUnregister,T0-XFER,alt,,,
+cuMemImportFromShareableHandle,T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,POSIX fd / FABRIC 핸들 (FABRIC은 IMEX 필요)
+cuMemMap,T2-VMM-POOL;T2-SLEEP;T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,VMM 공통 시퀀스
+cuMemRelease,T2-VMM-POOL;T2-SLEEP;T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,VMM 공통 시퀀스
+cuMemRetainAllocationHandle,T2-VMM-SHARE,primary,11.0,,포인터가 VMM 할당인지 판별
+cuMemSetAccess,T2-VMM-POOL;T2-SLEEP;T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,VMM 공통 시퀀스
+cuMemsetD32,T0-ALLOC,alt,,,
+cuMemsetD8,T0-ALLOC,alt,,,
+cuMemsetD8Async,T0-ALLOC,alt,,,
+cuMemUnmap,T2-VMM-POOL;T2-SLEEP;T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,VMM 공통 시퀀스
+cuModuleGetFunction,T2-KLOAD,primary,,,
+cuModuleGetGlobal,T2-KLOAD,primary,,,
+cuModuleLoad,T2-KLOAD,primary,,,
+cuModuleLoadData,T2-KLOAD,primary,,,
+cuModuleLoadDataEx,T2-KLOAD,primary,,,
+cuModuleUnload,T2-KLOAD,primary,,,
+cuMulticastAddDevice,T3-NVLS,primary,12.1,NVSwitch (NVLS),
+cuMulticastBindMem,T3-NVLS,primary,12.1,NVSwitch (NVLS),
+cuMulticastCreate,T3-NVLS,primary,12.1,NVSwitch (NVLS),
+cuMulticastGetGranularity,T3-NVLS,primary,12.1,NVSwitch (NVLS),
+cuMulticastUnbind,T3-NVLS,primary,12.1,NVSwitch (NVLS),
+cuOccupancyMaxPotentialBlockSize,T1-OCC;T2-KLOAD,alt,,,JIT 커널(CUfunction)용
+cuOccupancyMaxPotentialClusterSize,T2-CLUSTER,alt,11.8,SM90+,
+cuPointerGetAttribute,T1-IPC,primary,,,CU_POINTER_ATTRIBUTE_RANGE_START_ADDR로 캐싱 할당기 블록의 base 주소
+cuStreamCreate,T0-STREAM;T2-GREEN,alt,,,green context 구버전 폴백에서도 사용 (SGLang)
+cuStreamDestroy,T0-STREAM,alt,,,
+cuStreamSynchronize,T0-STREAM,alt,,,
+cuStreamWaitEvent,T0-STREAM,alt,,,
+cuStreamWaitValue32,T2-STREAMMEM,primary,,,
+cuStreamWriteValue32,T2-STREAMMEM,primary,,,
+cuTensorMapEncodeTiled,T2-TMA,primary,12.0,SM90+,
