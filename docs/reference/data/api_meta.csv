@@ -51,7 +51,7 @@ cudaGraphAddKernelNode,T2-GRAPH-BUILD,primary,,,
 cudaGraphAddMemAllocNode,T2-GRAPH-BUILD,primary,,,
 cudaGraphAddNode,T2-GRAPH-COND,primary,,,조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서)
 cudaGraphChildGraphNodeGetGraph,T2-GRAPH-BUILD,primary,,,
-cudaGraphConditionalHandleCreate,T2-GRAPH-COND,primary,,,조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서)
+cudaGraphConditionalHandleCreate,T2-GRAPH-COND,primary,12.3,,조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서)
 cudaGraphCreate,T2-GRAPH-BUILD,primary,,,
 cudaGraphDebugDotPrint,AUX-DEBUG,primary,,,
 cudaGraphDestroy,T1-GRAPH,primary,,,
@@ -94,7 +94,7 @@ cudaLaunchHostFunc_v2,T2-HOSTFN,primary,,,TRT-LLM nanobind hostfunc
 cudaLaunchKernel,T0-LAUNCH,primary,,,
 cudaLaunchKernelEx,T1-PDL;T2-CLUSTER,primary,11.8,,
 cudaLaunchKernelExC,T1-PDL;T2-CLUSTER,primary,11.8,,C 인터페이스 (attribute 배열 직접 전달)
-cudaLibraryLoadData,T2-KLOAD,alt,,,
+cudaLibraryLoadData,T2-KLOAD,alt,,,Runtime library API (cuda-python 바인딩은 v12.8.0부터 포함)
 cudaMalloc,T0-ALLOC,primary,,,
 cudaMallocAsync,T1-POOL,primary,11.2,,
 cudaMallocFromPoolAsync,T1-POOL,primary,11.2,,
@@ -130,7 +130,7 @@ cudaSetDevice,T0-DEV,primary,,,
 cudaSetDeviceFlags,T0-DEV,primary,,,cudaDeviceScheduleSpin으로 동기화 지연 감소 (llama.cpp)
 cudaStreamAddCallback,T2-HOSTFN,primary,,,
 cudaStreamBeginCapture,T1-GRAPH,primary,,,
-cudaStreamBeginCaptureToGraph,T2-GRAPH-COND,primary,,,조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서)
+cudaStreamBeginCaptureToGraph,T2-GRAPH-COND,primary,12.3,,조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서)
 cudaStreamCreate,T0-STREAM,primary,,,
 cudaStreamCreateWithFlags,T0-STREAM,primary,,,
 cudaStreamCreateWithPriority,T2-PRIO,primary,,,
@@ -158,8 +158,8 @@ cuDevicePrimaryCtxGetState,T2-CTX,primary,,,primary context가 이미 있는지 
 cuDevicePrimaryCtxRetain,T2-CTX,primary,,,
 cuDeviceTotalMem,T2-DRVDETECT,primary,,,
 cuDevResourceGenerateDesc,T2-GREEN,primary,12.4,,
-cuDevSmResourceSplit,T2-GREEN,primary,,,"TRT-LLM locality domain, cuGetProcAddress로 해석"
-cuDevSmResourceSplitByCount,T2-GREEN,primary,12.4,,
+cuDevSmResourceSplit,T2-GREEN,primary,,,"TRT-LLM locality domain, cuGetProcAddress로 해석. cuda-python 바인딩은 v13.2.0부터 포함"
+cuDevSmResourceSplitByCount,T2-GREEN,primary,12.4,,Runtime 대응 cudaDevSmResourceSplitByCount는 CUDA 13.x
 cuDriverGetVersion,T2-DRVDETECT;T2-VERGATE,primary,,,
 cuEventCreate,T0-STREAM,alt,,,
 cuEventDestroy,T0-STREAM,alt,,,
@@ -184,7 +184,7 @@ cuGraphKernelNodeSetAttribute,T2-GRAPH-BUILD;T2-KLOAD,alt,,,JIT 커널(CUfunctio
 cuGraphMemcpyNodeGetParams,T2-GRAPH-BUILD,alt,,,캡처한 그래프 분석·dedup (SGLang)
 cuGraphMemsetNodeGetParams,T2-GRAPH-BUILD,alt,,,캡처한 그래프 분석·dedup (SGLang)
 cuGraphNodeGetType,T2-GRAPH-BUILD,alt,,,캡처한 그래프 분석·dedup (SGLang)
-cuGreenCtxCreate,T2-GREEN,primary,12.4,,
+cuGreenCtxCreate,T2-GREEN,primary,12.4,,Runtime 대응 cudaGreenCtxCreate는 CUDA 13.x (cuda-python v13.2.0부터)
 cuGreenCtxDestroy,T2-GREEN,primary,12.4,,
 cuGreenCtxGetDevResource,T2-GREEN,primary,12.4,,
 cuGreenCtxStreamCreate,T2-GREEN,primary,12.5,,cuGetProcAddress로 해석
@@ -222,7 +222,7 @@ cuMemcpyDtoHAsync,T0-XFER,alt,,,
 cuMemcpyHtoD,T0-XFER,alt,,,
 cuMemcpyHtoDAsync,T0-XFER,alt,,,
 cuMemCreate,T2-VMM-POOL;T2-SLEEP;T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,VMM 공통 시퀀스
-cuMemExportToShareableHandle,T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,POSIX fd / FABRIC 핸들 (FABRIC은 IMEX 필요)
+cuMemExportToShareableHandle,T2-VMM-SHARE;T3-NVLS;T3-MNNVL,primary,10.2,,POSIX fd / FABRIC 핸들 (FABRIC은 IMEX 필요). 스트림 순서 풀(cudaMemPool) 메모리는 Runtime cudaMemPoolExportToShareableHandle로도 공유 가능
 cuMemFree,T0-ALLOC,alt,,,
 cuMemFreeHost,T0-XFER,alt,,,
 cuMemGetAddressRange,T2-VMM-SHARE;T3-MNNVL,primary,,,포인터가 속한 할당의 base·크기

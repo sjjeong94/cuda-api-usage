@@ -52,8 +52,8 @@
 | 0 (테스트·조건부에서만) | 12 |
 | **1** | **113** |
 | 2 | 42 |
-| 3 | 39 |
-| 4 | 27 |
+| 3 | 40 |
+| 4 | 26 |
 | 5 | 20 |
 | **6 (모두)** | **13** |
 
@@ -175,7 +175,7 @@ Graph ──── GraphExec
 | `cuxFenceCreate(const cuxFenceDesc*, cuxFence*)` | timing, shareable, 초기 값 | → 3 |
 | `cuxFenceQuery(cuxFence, uint64* value, cuxFenceTime*)` | 현재 값, signal 시각 | → 4 |
 | `cuxFenceWait(cuxFence, uint64 value, const cuxWaitDesc*)` | 호스트 대기 (spin/yield/block, timeout) | → 5 |
-| `cuxFenceSignal(cuxFence, uint64 value)` | 호스트에서 signal | **신규** (호스트 → GPU 의존성) |
+| `cuxFenceSignal(cuxFence, uint64 value)` | 호스트에서 signal | **신규** (호스트 → GPU 의존성. 지금은 mapped 메모리 쓰기 + `cuStreamWaitValue32`나 timeline 외부 세마포어 `cudaSignalExternalSemaphoresAsync`로 흉내 냄) |
 
 ### 메모리 (6)
 | 함수 | 역할 | 대체 |
@@ -413,7 +413,7 @@ cuxEnqueueGraph(decode_q, exec);
 | 현재 API | 제거 이유 |
 |---|---|
 | `cuCtxGetCurrent`, `cuCtxSetCurrent`, `cuCtxPushCurrent`, `cuCtxPopCurrent`, `cuCtxGetDevice`, `cuCtxCreate`, `cuCtxGetId`, `cuDevicePrimaryCtxRetain`, `cuDevicePrimaryCtxGetState`, `cuCtxFromGreenCtx` | 사용자에게 보이는 context가 없음. 객체는 디바이스·파티션에 속함 |
-| `cudaGetLastError`, `cudaPeekAtLastError` | 모든 호출이 상태를 반환. 비동기 에러는 큐별로 `cuxQueueQuery` |
+| `cudaGetLastError`, `cudaPeekAtLastError` | 모든 호출이 상태를 반환. 비동기 에러는 `cuxQueueQuery`로 조회하되, illegal address 같은 GPU fault는 큐 하나가 아니라 디바이스(파티션) 전체를 망가뜨리므로 장애 상태는 디바이스 단위로 둠(9.2 참고) |
 | `cudaThreadExchangeStreamCaptureMode` | 캡처는 캡처 중인 큐에만 영향. 풀 할당은 캡처 안전 |
 | `cudaDeviceEnablePeerAccess` | 접근 권한은 매핑·풀의 access 목록 |
 | `cudaDeviceReset` | 객체 단위 해제로 충분 |
@@ -427,6 +427,7 @@ cuxEnqueueGraph(decode_q, exec);
 | **생태계 호환** | PyTorch, NCCL, cuBLAS는 primary context와 현재 디바이스를 가정함 | 구현은 내부적으로 디바이스마다 primary context 하나를 쓰고, 현재 context를 맞춰 줌 (지금 PyTorch가 하는 일과 같음) |
 | **캡처 안전성 검사 약화** | 전역 캡처 모드는 다른 스레드의 위험한 호출을 잡아 줬음 | 큐 단위 캡처 + 캡처 중 금지 명령은 해당 큐에서 에러. 다른 스레드의 일반 할당은 풀이 처리 |
 | **작은 할당 오버헤드** | VMM 3층 구조를 기본으로 하면 granularity(보통 2MB)가 큼 | 일반 할당은 풀이 큰 덩어리를 잘라 씀. 지금의 캐싱 할당기와 같은 구조 |
+| **장애 범위는 남음** | context를 없애도 GPU fault(sticky 에러)는 지금처럼 디바이스(또는 파티션) 전체에 영향을 줌. 큐별 에러 보고만으로는 복구 단위를 표현할 수 없음 | `cuxDeviceQuery`에 장애 상태를 두고, 장애가 나면 그 디바이스의 모든 객체가 에러를 돌려주게 함. 복구는 디바이스 재초기화 |
 | **fence 의미 차이** | 이벤트는 "마지막 기록 시점", fence는 "단조 증가 값". 이벤트를 재기록하는 코드는 값 관리로 바꿔야 함 | 큐 내장 fence로 대부분의 경우를 덮음 |
 | **descriptor ABI 복잡도** | `size`·`next` 체인 관리, 검증 비용 | Vulkan 등에서 검증된 방식. 핫 패스 함수(`EnqueueLaunch`, `EnqueueCopy`)는 descriptor를 재사용 |
 | **배치 강제** | 항목 하나짜리 복사도 배열로 넘김 | 비용은 포인터 하나. 헬퍼가 단일 복사 함수를 제공 |

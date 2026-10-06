@@ -31,13 +31,13 @@
   | 해제 | `cudaGraphExecDestroy`, `cudaGraphDestroy` |
 
 - **선택 API**
-  - `cudaGraphInstantiateFlagAutoFreeOnLaunch`: 그래프 안에서 할당한 메모리를 다음 launch 전에 자동 해제 (ExecuTorch)
+  - `cudaGraphInstantiateFlagAutoFreeOnLaunch`: 그래프 안의 메모리 할당 노드(캡처 중 `cudaMallocAsync`)가 만든 메모리를 다음 launch 전에 자동 해제 (ExecuTorch)
   - `cudaDeviceGraphMemTrim`: 그래프 전용 메모리 반환 (ExecuTorch)
 - **설계 포인트**
   - 입력은 고정 주소의 static buffer에 복사한 뒤 replay합니다 (`cudaMemcpyAsync`).
   - batch 크기마다 그래프를 따로 캡처하고, 실제 batch는 가장 가까운 크기로 padding합니다.
   - RNG 상태 초기화처럼 캡처할 수 없는 작업은 warmup에서 끝냅니다 (ExecuTorch `rand.cu`, warmup 3회 후 캡처).
-- **프로파일**: [PT]는 `torch.cuda.CUDAGraph`로 캡처하므로 vLLM, SGLang, TRT-LLM 본체에는 `cudaGraph*` 호출이 없습니다 (TRT-LLM은 테스트에만 있음). PyTorch 안에서는 `cudaStreamBeginCapture`(기본 `cudaStreamCaptureModeGlobal`) → `cudaStreamEndCapture` → `cudaGraphInstantiateWithFlags(AutoFreeOnLaunch | UseNodePriority)` → `cudaGraphLaunch`가 실행되고, 캐싱 할당기가 그래프 전용 private pool을 관리합니다 (`aten/src/ATen/cuda/CUDAGraph.cpp`, [evidence](../evidence/pytorch_cuda_api_usage.md#24-cuda-graph-atensrcatencudacudagraphcpp-c10cudacudagraphsc10utilsh)). PyTorch는 `cudaGraphExecUpdate`를 쓰지 않으므로, batch 크기마다 따로 인스턴스화합니다. [SA]는 직접 구현합니다 (llama.cpp 기본 켜짐, MLX 기본 켜짐, ExecuTorch method별 opt-in).
+- **프로파일**: [PT]는 `torch.cuda.CUDAGraph`로 캡처하므로 vLLM, SGLang, TRT-LLM 본체에는 `cudaGraph*` 호출이 없습니다 (TRT-LLM은 테스트에만 있음). PyTorch 안에서는 `cudaStreamBeginCapture`(기본 `cudaStreamCaptureModeGlobal`) → `cudaStreamEndCapture` → `cudaGraphInstantiateWithFlags(AutoFreeOnLaunch | UseNodePriority)` → `cudaGraphLaunch`가 실행되고, 캐싱 할당기가 그래프 전용 private pool을 관리합니다. `AutoFreeOnLaunch`는 cudaMallocAsync 백엔드에서 생기는 그래프 메모리 노드용이고(`CUDAGraph.cpp` 주석), 기본 캐싱 할당기에서는 그래프 안 할당이 private pool에서 나오므로 이 플래그와 관계없습니다 (`aten/src/ATen/cuda/CUDAGraph.cpp`, [evidence](../evidence/pytorch_cuda_api_usage.md#24-cuda-graph-atensrcatencudacudagraphcpp-c10cudacudagraphsc10utilsh)). PyTorch는 `cudaGraphExecUpdate`를 쓰지 않으므로, batch 크기마다 따로 인스턴스화합니다. [SA]는 직접 구현합니다 (llama.cpp 기본 켜짐, MLX 기본 켜짐, ExecuTorch method별 opt-in).
 - **결론**: **디코딩 지연을 낮추려면 사실상 필수**입니다. [PT]라면 PyTorch 기능을 쓰고, 아래의 캡처 인지 동작만 직접 처리하면 됩니다.
 
 ## T1-CAPAWARE 캡처 인지 동작
@@ -69,7 +69,8 @@
 - **요구 사항**: 디바이스 측 동작은 SM90(Hopper) 이상에서만 효과가 있습니다(llama.cpp 문서 기준). 구형 GPU 동작은 대상 툴킷에서 확인하고, 필요하면 아키텍처로 분기하세요. llama.cpp는 CUDA 12.3+(Linux 11.8+)로 빌드할 때만 컴파일합니다(`GGML_CUDA_USE_PDL`).
 - **설계 포인트**: 공통 launcher 함수 하나에서 PDL 속성을 붙이고(llama.cpp `ggml_cuda_kernel_launch`, SGLang JIT `utils.cuh`), 커널마다 PDL 지원 여부를 표시합니다. 런타임 스위치를 두세요 (llama.cpp `GGML_CUDA_PDL=0`).
 - **근거**: TRT-LLM(호스트 117곳+, 디바이스 약 300곳), vLLM(호스트 27곳, 디바이스 약 70곳), SGLang, llama.cpp(기본 켜짐)
-- **결론**: Hopper 이상을 대상으로 하는 서빙 엔진의 **표준 최적화**입니다. Runtime API만으로 되고, 커널 코드에 두 줄을 넣는 방식이라 점진적으로 적용할 수 있습니다.
+- **주의**: PDL 속성으로 실행한 커널은 앞 커널이 끝나기 전에 시작할 수 있습니다. 앞 커널의 출력을 읽기 전에 반드시 `cudaGridDependencySynchronize()`를 불러야 하고, 이 호출이 없는 커널에 속성만 붙이면 데이터 레이스가 생깁니다. 그래서 llama.cpp와 SGLang은 커널마다 PDL 지원 여부를 표시하고, 표시된 커널에만 속성을 붙입니다.
+- **결론**: Hopper 이상을 대상으로 하는 서빙 엔진의 **표준 최적화**입니다. Runtime API만으로 되고, 커널마다 대기·신호 두 줄을 넣는 방식이라 커널 단위로 점진적으로 적용할 수 있습니다.
 
 ## T1-OCC Occupancy 기반 launch 구성
 
@@ -128,7 +129,7 @@
 - **API**: `cudaGraphConditionalHandleCreate`(조건 핸들) → `cudaGraphAddNode`(조건 노드 추가) → `cudaStreamBeginCaptureToGraph`(본문 그래프로 캡처 전환) → `cudaStreamUpdateCaptureDependencies`(원래 캡처로 복귀). 커널 안에서는 `cudaGraphSetConditional`로 조건 값을 씁니다.
 - **근거**: PyTorch `CUDAGraph.begin_capture_to_conditional_node()` (`aten/src/ATen/cuda/CUDAGraph.cpp`). 다섯 서빙 프레임워크는 아직 쓰지 않습니다.
 - **서빙에서의 쓰임 (가능성)**: speculative decoding의 accept/reject 분기, 조기 종료, 가변 반복 횟수처럼 지금은 그래프를 끊고 호스트에서 판단하는 부분
-- **요구 사항**: 조건 노드를 지원하는 CUDA 12.x 이상 (정확한 최소 버전은 대상 툴킷에서 확인)
+- **요구 사항**: CUDA 12.3+ (`cudaGraphConditionalHandleCreate`, `cudaStreamBeginCaptureToGraph`, IF·WHILE 노드). IF/ELSE와 SWITCH 노드는 CUDA 12.8+
 - **결론**: [PT]라면 PyTorch API로 바로 시도해 볼 수 있습니다. 아직 서빙 프레임워크에서 검증된 패턴은 아닙니다.
 
 ## T2-COOP Cooperative launch

@@ -1,12 +1,12 @@
 # 07. 스케줄링·격리: SM 분할, 스트림 우선순위, GPU 측 신호
 
-한 GPU에서 성격이 다른 작업(prefill과 decode, 계산과 전송, 여러 모델)을 동시에 돌릴 때, 서로 간섭을 줄이는 기능입니다. 스트림을 여러 개 쓰는 것만으로는 SM 할당을 제어할 수 없어서, 강한 격리를 원하면 Driver API(green context)가 필요합니다.
+한 GPU에서 성격이 다른 작업(prefill과 decode, 계산과 전송, 여러 모델)을 동시에 돌릴 때, 서로 간섭을 줄이는 기능입니다. 스트림을 여러 개 쓰는 것만으로는 SM 할당을 제어할 수 없어서, SM 단위로 나누려면 green context가 필요합니다. green context는 CUDA 12.x까지 Driver 전용이고, CUDA 13.x에는 Runtime 버전도 있습니다.
 
 | 기능 | 등급 | 격리 수준 | 핵심 API | 종류 |
 |---|:---:|---|---|---|
 | 다중 스트림 fork/join | T0 조합 | 없음 (동시 실행만) | `cudaEventRecord`, `cudaStreamWaitEvent` | Runtime |
 | [스트림 우선순위](#t2-prio-스트림-우선순위) | T2 | 약함 (스케줄링 우선) | `cudaStreamCreateWithPriority` | Runtime |
-| [Green Context](#t2-green-green-context-sm-분할) | T2 | 강함 (SM 분할) | `cuGreenCtxCreate`, `cuGreenCtxStreamCreate` | **Driver** |
+| [Green Context](#t2-green-green-context-sm-분할) | T2 | SM은 분리, 메모리 대역폭·L2는 공유 | `cuGreenCtxCreate`, `cuGreenCtxStreamCreate` | **Driver** (CUDA 13.x는 Runtime도) |
 | [스트림 메모리 연산](#t2-streammem-스트림-메모리-연산) | T2 | — (프로세스 간 순서) | `cuStreamWaitValue32`, `cuStreamWriteValue32` | **Driver** |
 
 ---
@@ -27,7 +27,7 @@
 
 ## T2-GREEN Green Context (SM 분할)
 
-- **목적**: GPU의 SM을 나눠 각 파티션에 묶인 스트림을 만듭니다. 파티션끼리는 SM을 공유하지 않으므로, 한쪽의 큰 작업이 다른 쪽의 지연에 영향을 주지 않습니다.
+- **목적**: GPU의 SM을 나눠 각 파티션에 묶인 스트림을 만듭니다. 파티션끼리는 SM을 공유하지 않으므로, 한쪽의 큰 작업이 다른 쪽의 SM을 차지하지 못합니다. 다만 메모리 대역폭, L2 캐시, copy engine은 계속 공유하므로 간섭이 완전히 사라지지는 않습니다. 하드웨어 work queue를 공유하면 서로 다른 파티션의 작업이 같은 큐에서 줄을 서는 문제도 생길 수 있어서, PyTorch는 work queue 공유 범위를 따로 설정합니다(아래 활용 표).
 - **필수 API (Driver)**
 
   | 단계 | API |
@@ -41,7 +41,8 @@
   | 해제 | `cuGreenCtxDestroy`, `cuStreamDestroy` |
 
 - **폴백 (구버전 드라이버)**: `cuGreenCtxStreamCreate`가 없으면 `cuCtxFromGreenCtx` → `cuCtxPushCurrent` → `cuStreamCreate` → `cuCtxPopCurrent` (SGLang)
-- **요구 사항**: CUDA 12.4+ (`cuGreenCtxStreamCreate`는 12.5+). SM은 정해진 단위로만 나눌 수 있으므로 원하는 비율과 정확히 맞지 않을 수 있습니다.
+- **Runtime 대응 (CUDA 13.x)**: `cudaDeviceGetDevResource`, `cudaDevSmResourceSplitByCount`/`cudaDevSmResourceSplit`, `cudaDevResourceGenerateDesc`, `cudaGreenCtxCreate`, `cudaExecutionCtxStreamCreate`, `cudaExecutionCtxDestroy`. cuda-python 바인딩에는 v13.2.0부터 있습니다. 분석한 프로젝트는 아직 쓰지 않습니다.
+- **요구 사항**: CUDA 12.4+ (`cuGreenCtxStreamCreate`는 12.5+). work queue 설정(`CU_DEV_RESOURCE_TYPE_WORKQUEUE_CONFIG`)은 드라이버 13.1+(PyTorch `green_contexts.py`의 13010 확인). SM은 정해진 단위로만 나눌 수 있으므로 원하는 비율과 정확히 맞지 않을 수 있습니다.
 - **활용**
 
   | 프레임워크 | 용도 |
@@ -51,7 +52,7 @@
   | ExecuTorch | 직접 만들지 않음. 호출자가 green context 스트림을 넘기면 그 위에서 실행 (`CallerStreamGuard`) |
   | PyTorch | `torch.cuda.green_contexts.GreenContext.create(...)` → `GreenContext.Stream()`. cuda-python으로 `cuDevSmResourceSplitByCount`, `cuGreenCtxCreate`, `cuGreenCtxStreamCreate`를 부르고, SM 수 외에 **work queue 공유 범위**(`CU_DEV_RESOURCE_TYPE_WORKQUEUE_CONFIG`)도 설정. green context마다 스트림 32개를 풀로 둠 |
 
-- **결론**: prefill-decode 간섭을 같은 GPU에서 해결하려면 필요합니다. PD를 GPU 단위로 분리(disaggregation)하는 대안과 비교해 선택하세요. **Runtime 대응 API가 없습니다.** [PT] 엔진이라면 PyTorch의 `GreenContext`로 시작할 수 있습니다. 반환된 스트림이 `torch.cuda.Stream`이라 PyTorch 연산을 그대로 올릴 수 있습니다. 라이브러리 형태 엔진이라면 ExecuTorch처럼 호출자의 스트림을 받는 인터페이스만 두는 방법도 있습니다.
+- **결론**: prefill-decode 간섭을 같은 GPU에서 해결하려면 필요합니다. PD를 GPU 단위로 분리(disaggregation)하는 대안과 비교해 선택하세요. CUDA 12.x에서는 Runtime 대응 API가 없고, CUDA 13.x부터는 Runtime으로도 만들 수 있습니다. [PT] 엔진이라면 PyTorch의 `GreenContext`로 시작할 수 있습니다. 반환된 스트림이 `torch.cuda.Stream`이라 PyTorch 연산을 그대로 올릴 수 있습니다. 라이브러리 형태 엔진이라면 ExecuTorch처럼 호출자의 스트림을 받는 인터페이스만 두는 방법도 있습니다.
 
 ## T2-STREAMMEM 스트림 메모리 연산
 

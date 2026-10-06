@@ -30,10 +30,11 @@ KV cache 관리의 핵심 로직(paging, prefix 재사용, eviction)은 CUDA API
 
 ## T1-BATCHCOPY 배치 복사
 
-- **목적**: 페이지 단위 KV는 블록 하나가 작고(수십~수백 KB) 흩어져 있습니다. 블록 수백 개를 `cudaMemcpyAsync`로 하나씩 제출하면 API 호출 오버헤드가 전송 시간을 넘습니다. 배치 복사는 여러 (src, dst, size)를 **한 번의 호출**로 copy engine에 제출합니다.
+- **목적**: 페이지 단위 KV는 블록 하나가 작고(수십~수백 KB) 흩어져 있습니다. 블록 수백 개를 `cudaMemcpyAsync`로 하나씩 제출하면, 블록이 작을수록 호출마다 드는 CPU 오버헤드(수 µs 수준)가 전송 시간에 비해 커집니다. 정확한 손익분기점은 블록 크기와 링크에 따라 다르므로 측정이 필요합니다. 배치 복사는 여러 (src, dst, size)를 **한 번의 호출**로 copy engine에 제출합니다.
 - **API**: `cuMemcpyBatchAsync` (Driver) 또는 `cudaMemcpyBatchAsync` (Runtime)
 - **폴백**: `cudaMemcpyAsync` 반복 호출. 세 프레임워크 모두 폴백 경로를 둡니다.
-- **요구 사항**: CUDA 12.8+. vLLM 문서에 따르면 legacy default stream에서는 쓸 수 없습니다.
+- **요구 사항**: CUDA 12.8+. legacy default stream에서는 쓸 수 없습니다(vLLM `cache_kernels.cu` 주석).
+- **시그니처 변경**: CUDA 13에서 `cudaMemcpyBatchAsync`의 `failIdx` 인자가 빠졌고, Driver에는 `cuMemcpyBatchAsync_v2`가 추가됐습니다. vLLM은 `cuGetProcAddress(..., 12080)`로 12.8 시그니처(`failIdx` 포함)를 고정해 받습니다(`simple_kv_offload/cuda_mem_ops.py`). 함수 포인터로 해석할 때는 요청 버전과 시그니처를 맞추세요.
 - **버전 분기 방법** ([08](08-driver-vs-runtime.md) 참고)
 
   | 프레임워크 | 방법 |
@@ -42,7 +43,7 @@ KV cache 관리의 핵심 로직(paging, prefix 재사용, eviction)은 CUDA API
   | SGLang | `dlsym`으로 Runtime 심볼 해석 + `cudaRuntimeGetVersion`/`cudaDriverGetVersion` 확인 (`kvcacheio/transfer.cu`), JIT 커널은 함수 포인터 (`staged_write_back.cuh`) |
   | TRT-LLM | KV v2 `batchedPageCopy.cu`, 12.8 미만은 `cuMemcpyAsync` 반복 |
 
-- **다른 용도**: TRT-LLM은 DWDP 가중치 이동(`weight_manager.py`)과 확산 모델 Ulysses all-to-all(`asyncUlyssesOp.cpp`)에도 씁니다. **copy engine으로 전송하므로 SM을 쓰지 않습니다.**
+- **다른 용도**: TRT-LLM은 DWDP 가중치 이동(`weight_manager.py`)과 확산 모델 Ulysses all-to-all(`asyncUlyssesOp.cpp`)에도 씁니다. **copy engine으로 전송하므로 일반적으로 SM을 쓰지 않습니다.**
 - **결론**: KV 오프로드를 한다면 사실상 표준입니다. 빌드 시점에 링크하지 말고 **런타임에 심볼을 찾아** 구버전 드라이버에서도 동작하게 하세요.
 
 ## Zero-copy / TMA 전송 커널 (T1 / T2)

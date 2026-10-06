@@ -2,16 +2,16 @@
 
 ## 1. 결정 규칙
 
-**기본은 Runtime API입니다.** 아래 표의 기능이 필요할 때만 Driver API를 씁니다. 표에 없는 기능이라면 같은 일을 하는 Runtime API가 있습니다.
+**기본은 Runtime API입니다.** 아래 표의 기능이 필요할 때만 Driver API를 씁니다. 표에 없는 기능이라면 같은 일을 하는 Runtime API가 있습니다. 표의 `Runtime 대응` 열에 API가 적혀 있다면, 대상 CUDA 버전에 따라 그 기능도 Runtime만으로 만들 수 있습니다. Driver가 꼭 필요한 것은 그 열이 "없음"인 경우입니다.
 
 | 필요한 기능 | Driver API | Runtime 대응 | 가이드 |
 |---|---|---|---|
 | 주소를 유지하는 확장·반납 (VMM 풀, Sleep/Wake) | `cuMemAddressReserve`, `cuMemCreate`, `cuMemMap`, `cuMemSetAccess` … | 없음 | [02](02-memory.md) |
-| VMM 메모리 공유 (POSIX fd, FABRIC) | `cuMemExportToShareableHandle`, `cuMemImportFromShareableHandle` | 없음 (`cudaIpc*`는 `cudaMalloc` 메모리만) | [02](02-memory.md), [06](06-multi-gpu.md) |
+| VMM 메모리 공유 (POSIX fd, FABRIC) | `cuMemExportToShareableHandle`, `cuMemImportFromShareableHandle` | VMM 메모리에는 없음. 메모리 풀 메모리는 `cudaMemPoolExportToShareableHandle`/`ExportPointer`로 POSIX fd·FABRIC 공유 가능 (`cudaIpc*`는 `cudaMalloc` 메모리만) | [02](02-memory.md), [06](06-multi-gpu.md) |
 | 할당 블록의 base 주소 | `cuPointerGetAttribute(RANGE_START_ADDR)`, `cuMemGetAddressRange` | 없음 | [06](06-multi-gpu.md) |
-| 외부 CUBIN·JIT 커널 로드 | `cuModuleLoadData`, `cuLibraryLoadData` … | `cudaLibraryLoadData` (일부) | [05](05-kernel-loading.md) |
+| 외부 CUBIN·JIT 커널 로드 | `cuModuleLoadData`, `cuLibraryLoadData` … | `cudaLibraryLoadData`, `cudaLibraryGetKernel`, `cudaKernelSetAttributeForDevice` → `cudaLaunchKernel(Ex)` (Library API 대응). Module API에는 없음 | [05](05-kernel-loading.md) |
 | TMA descriptor | `cuTensorMapEncodeTiled` | 없음 (entry point로 호출) | [04](04-execution.md) |
-| SM 분할 | `cuGreenCtx*`, `cuDevSmResourceSplit*` | 없음 | [07](07-scheduling-isolation.md) |
+| SM 분할 | `cuGreenCtx*`, `cuDevSmResourceSplit*` | CUDA 12.x는 없음. CUDA 13.x는 `cudaGreenCtxCreate`, `cudaDevSmResourceSplit*`, `cudaExecutionCtxStreamCreate` | [07](07-scheduling-isolation.md) |
 | NVSwitch 멀티캐스트 | `cuMulticast*` | 없음 | [06](06-multi-gpu.md) |
 | Logical Endpoint | `cuLogicalEndpoint*` | 없음 | [06](06-multi-gpu.md) |
 | GPU 측 신호 | `cuStreamWaitValue32`, `cuStreamWriteValue32` | 없음 | [07](07-scheduling-isolation.md) |

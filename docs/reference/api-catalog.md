@@ -11,7 +11,7 @@ PyTorch는 vLLM·SGLang·TRT-LLM이 의존하는 라이브러리라서 함께 �
 
 | 프레임워크 | Driver | Runtime (호스트) | Runtime (디바이스 측) |
 |---|---:|---:|---:|
-| vLLM | 16 | 36 | 2 |
+| vLLM | 16 | 35 | 2 |
 | SGLang | 46 | 44 | 2 |
 | TRT-LLM | 84 | 72 | 2 |
 | Ollama | 26 | 70 | 2 |
@@ -54,7 +54,7 @@ PyTorch는 vLLM·SGLang·TRT-LLM이 의존하는 라이브러리라서 함께 �
 | **T0-MEMINFO** 메모리 용량 산정 | T0 | `cudaMemGetInfo` | `cuMemGetInfo` | TRT-LLM, Ollama, ExecuTorch, PyTorch | vLLM, SGLang | [01-t0-essential.md](../guide/01-t0-essential.md) |
 | **T0-ALLOC** 디바이스 메모리 할당·초기화 | T0 | `cudaFree`, `cudaMalloc`, `cudaMemset`, `cudaMemsetAsync` | `cuMemAlloc`, `cuMemFree`, `cuMemsetD32`, `cuMemsetD32Async`, `cuMemsetD8`, `cuMemsetD8Async` | vLLM, SGLang, TRT-LLM, Ollama, ExecuTorch, PyTorch |  | [01-t0-essential.md](../guide/01-t0-essential.md) |
 | **T0-XFER** Host↔Device 전송과 pinned 버퍼 | T0 | `cudaFreeHost`, `cudaGetSymbolAddress`, `cudaHostAlloc`, `cudaHostRegister`, `cudaHostUnregister`, `cudaMallocHost`, `cudaMemcpy`, `cudaMemcpy2DAsync`, `cudaMemcpyAsync`, `cudaMemcpyToSymbol`, `cudaPointerGetAttributes` | `cuMemcpyAsync`, `cuMemcpyDtoD`, `cuMemcpyDtoH`, `cuMemcpyDtoHAsync`, `cuMemcpyHtoD`, `cuMemcpyHtoDAsync`, `cuMemFreeHost`, `cuMemHostAlloc`, `cuMemHostRegister`, `cuMemHostUnregister` | vLLM, SGLang, TRT-LLM, Ollama, ExecuTorch, PyTorch |  | [01-t0-essential.md](../guide/01-t0-essential.md) |
-| **T0-STREAM** 스트림·이벤트 동기화 | T0 | `cudaDeviceSynchronize`, `cudaEventCreate`, `cudaEventCreateWithFlags`, `cudaEventDestroy`, `cudaEventQuery`, `cudaEventRecord`, `cudaEventRecordWithFlags`, `cudaEventSynchronize`, `cudaStreamCreate`, `cudaStreamCreateWithFlags`, `cudaStreamDestroy`, `cudaStreamQuery`, `cudaStreamSynchronize`, `cudaStreamWaitEvent` | `cuCtxSynchronize`, `cuEventCreate`, `cuEventDestroy`, `cuEventQuery`, `cuEventRecord`, `cuEventSynchronize`, `cuStreamCreate`, `cuStreamDestroy`, `cuStreamSynchronize`, `cuStreamWaitEvent` | vLLM, SGLang, TRT-LLM, Ollama, ExecuTorch, PyTorch | vLLM, SGLang | [01-t0-essential.md](../guide/01-t0-essential.md) |
+| **T0-STREAM** 스트림·이벤트 동기화 | T0 | `cudaDeviceSynchronize`, `cudaEventCreate`, `cudaEventCreateWithFlags`, `cudaEventDestroy`, `cudaEventQuery`, `cudaEventRecord`, `cudaEventRecordWithFlags`, `cudaEventSynchronize`, `cudaStreamCreate`, `cudaStreamCreateWithFlags`, `cudaStreamDestroy`, `cudaStreamQuery`, `cudaStreamSynchronize`, `cudaStreamWaitEvent` | `cuCtxSynchronize`, `cuEventCreate`, `cuEventDestroy`, `cuEventQuery`, `cuEventRecord`, `cuEventSynchronize`, `cuStreamCreate`, `cuStreamDestroy`, `cuStreamSynchronize`, `cuStreamWaitEvent` | TRT-LLM, Ollama, ExecuTorch, PyTorch | vLLM, SGLang | [01-t0-essential.md](../guide/01-t0-essential.md) |
 | **T0-LAUNCH** 커널 실행·설정 | T0 | `cudaFuncGetAttributes`, `cudaFuncSetAttribute`, `cudaLaunchKernel` |  | vLLM, SGLang, TRT-LLM, Ollama, ExecuTorch, PyTorch |  | [01-t0-essential.md](../guide/01-t0-essential.md) |
 | **T0-ERR** 에러 처리 | T0 | `cudaGetErrorName`, `cudaGetErrorString`, `cudaGetLastError`, `cudaPeekAtLastError` | `cuGetErrorName`, `cuGetErrorString`, `cuLogsRegisterCallback` | vLLM, SGLang, TRT-LLM, Ollama, ExecuTorch, PyTorch |  | [01-t0-essential.md](../guide/01-t0-essential.md) |
 | **T1-GRAPH** CUDA Graph (캡처·재실행) | T1 | `cudaDeviceGetGraphMemAttribute`, `cudaDeviceGraphMemTrim`, `cudaDeviceSetGraphMemAttribute`, `cudaGraphDestroy`, `cudaGraphExecDestroy`, `cudaGraphExecUpdate`, `cudaGraphInstantiate`, `cudaGraphInstantiateWithFlags`, `cudaGraphLaunch`, `cudaGraphRetainUserObject`, `cudaStreamBeginCapture`, `cudaStreamEndCapture`, `cudaUserObjectCreate`, `cudaUserObjectRelease` |  | Ollama, ExecuTorch, PyTorch | vLLM, SGLang, TRT-LLM | [04-execution.md](../guide/04-execution.md) |
@@ -83,7 +83,7 @@ PyTorch는 vLLM·SGLang·TRT-LLM이 의존하는 라이브러리라서 함께 �
 | **T2-DRVDETECT** 드라이버만으로 GPU 탐지 | T2 | `cuDeviceGet`, `cuDeviceGetAttribute`, `cuDeviceGetCount`, `cuDeviceGetName`, `cuDeviceGetPCIBusId`, `cuDeviceGetUuid_v2`, `cuDeviceTotalMem`, `cuDriverGetVersion`, `cuInit` |  | Ollama |  | [08-driver-vs-runtime.md](../guide/08-driver-vs-runtime.md) |
 | **T2-VERGATE** 버전 의존 심볼 해석 | T2 | `cudaDriverGetVersion`, `cudaGetDriverEntryPoint`, `cudaGetDriverEntryPointByVersion`, `cudaRuntimeGetVersion`, `cuDriverGetVersion`, `cuGetProcAddress` |  | vLLM, SGLang, TRT-LLM, PyTorch |  | [08-driver-vs-runtime.md](../guide/08-driver-vs-runtime.md) |
 | **T2-CTX** 컨텍스트 관리 (Driver·Runtime 혼용) | T2 | `cuCtxCreate`, `cuCtxGetCurrent`, `cuCtxGetDevice`, `cuCtxPopCurrent`, `cuCtxPushCurrent`, `cuCtxSetCurrent`, `cuDevicePrimaryCtxGetState`, `cuDevicePrimaryCtxRetain` |  | vLLM, SGLang, TRT-LLM, PyTorch |  | [08-driver-vs-runtime.md](../guide/08-driver-vs-runtime.md) |
-| **T3-NVLS** NVLS 멀티캐스트 | T3 | `cuDeviceGetAttribute`, `cuMemAddressFree`, `cuMemAddressReserve`, `cuMemCreate`, `cuMemExportToShareableHandle`, `cuMemGetAllocationGranularity`, `cuMemImportFromShareableHandle`, `cuMemMap`, `cuMemRelease`, `cuMemSetAccess`, `cuMemUnmap`, `cuMulticastAddDevice`, `cuMulticastBindMem`, `cuMulticastCreate`, `cuMulticastGetGranularity`, `cuMulticastUnbind` |  | TRT-LLM, PyTorch |  | [06-multi-gpu.md](../guide/06-multi-gpu.md) |
+| **T3-NVLS** NVLS 멀티캐스트 | T3 | `cuDeviceGetAttribute`, `cuMemAddressFree`, `cuMemAddressReserve`, `cuMemCreate`, `cuMemExportToShareableHandle`, `cuMemGetAllocationGranularity`, `cuMemImportFromShareableHandle`, `cuMemMap`, `cuMemRelease`, `cuMemSetAccess`, `cuMemUnmap`, `cuMulticastAddDevice`, `cuMulticastBindMem`, `cuMulticastCreate`, `cuMulticastGetGranularity`, `cuMulticastUnbind` |  | TRT-LLM, PyTorch | vLLM, SGLang | [06-multi-gpu.md](../guide/06-multi-gpu.md) |
 | **T3-MNNVL** MNNVL fabric 메모리 | T3 | `cuDeviceGetAttribute`, `cuMemAddressFree`, `cuMemAddressReserve`, `cuMemCreate`, `cuMemExportToShareableHandle`, `cuMemGetAddressRange`, `cuMemGetAllocationGranularity`, `cuMemImportFromShareableHandle`, `cuMemMap`, `cuMemRelease`, `cuMemSetAccess`, `cuMemUnmap` |  | TRT-LLM, PyTorch |  | [06-multi-gpu.md](../guide/06-multi-gpu.md) |
 | **T3-LE** Logical Endpoint | T3 | `cuLogicalEndpointBindMem`, `cuLogicalEndpointCreate`, `cuLogicalEndpointDestroy`, `cuLogicalEndpointExport`, `cuLogicalEndpointIdRelease`, `cuLogicalEndpointIdReserve`, `cuLogicalEndpointImport`, `cuLogicalEndpointQuery`, `cuLogicalEndpointUnbind` |  | TRT-LLM |  | [06-multi-gpu.md](../guide/06-multi-gpu.md) |
 | **T3-LINKAWARE** 링크 인지 복사 전략 | T3 | `cudaDeviceGetPCIBusId`, `cudaGetKernel` |  | TRT-LLM |  | [03-kv-cache.md](../guide/03-kv-cache.md) |
@@ -150,8 +150,8 @@ PyTorch는 vLLM·SGLang·TRT-LLM이 의존하는 라이브러리라서 함께 �
 | `cuDevicePrimaryCtxRetain` | driver | T2 | T2-CTX | primary | ● |  | ● |  |  | ● | aten, c10d, inductor |  |  |  |
 | `cuDeviceTotalMem` | driver | T2 | T2-DRVDETECT | primary |  |  | ● | O● |  |  |  |  |  |  |
 | `cuDevResourceGenerateDesc` | driver | T2 | T2-GREEN | primary |  | ● | ● |  |  | ● | torch.cuda | 12.4 |  |  |
-| `cuDevSmResourceSplit` | driver | T2 | T2-GREEN | primary |  |  | ● |  |  |  |  |  |  | TRT-LLM locality domain, cuGetProcAddress로 해석 |
-| `cuDevSmResourceSplitByCount` | driver | T2 | T2-GREEN | primary |  | ● |  |  |  | ● | torch.cuda | 12.4 |  |  |
+| `cuDevSmResourceSplit` | driver | T2 | T2-GREEN | primary |  |  | ● |  |  |  |  |  |  | TRT-LLM locality domain, cuGetProcAddress로 해석. cuda-python 바인딩은 v13.2.0부터 포함 |
+| `cuDevSmResourceSplitByCount` | driver | T2 | T2-GREEN | primary |  | ● |  |  |  | ● | torch.cuda | 12.4 |  | Runtime 대응 cudaDevSmResourceSplitByCount는 CUDA 13.x |
 | `cuDriverGetVersion` | driver | T2 | T2-DRVDETECT, T2-VERGATE | primary |  | ● |  | O● |  | ● | torch.cuda |  |  |  |
 | `cuFuncGetAttribute` | driver | T2 | T2-KLOAD | primary | t | ● |  |  |  | ● | inductor |  |  | CUfunction의 smem·속성 |
 | `cuFuncSetAttribute` | driver | T2 | T2-KLOAD | primary |  |  | ● | M● | A● | ● | inductor, inductor-gen, torch.cuda |  |  | CUfunction의 smem·속성 |
@@ -167,7 +167,7 @@ PyTorch는 vLLM·SGLang·TRT-LLM이 의존하는 라이브러리라서 함께 �
 | `cuGraphMemcpyNodeGetParams` | driver | T2 | T2-GRAPH-BUILD | alt |  | ● |  |  |  |  |  |  |  | 캡처한 그래프 분석·dedup (SGLang) |
 | `cuGraphMemsetNodeGetParams` | driver | T2 | T2-GRAPH-BUILD | alt |  | ● |  |  |  |  |  |  |  | 캡처한 그래프 분석·dedup (SGLang) |
 | `cuGraphNodeGetType` | driver | T2 | T2-GRAPH-BUILD | alt |  | ● |  |  |  | ● | torch.cuda |  |  | 캡처한 그래프 분석·dedup (SGLang) |
-| `cuGreenCtxCreate` | driver | T2 | T2-GREEN | primary |  | ● | ● |  |  | ● | torch.cuda | 12.4 |  |  |
+| `cuGreenCtxCreate` | driver | T2 | T2-GREEN | primary |  | ● | ● |  |  | ● | torch.cuda | 12.4 |  | Runtime 대응 cudaGreenCtxCreate는 CUDA 13.x (cuda-python v13.2.0부터) |
 | `cuGreenCtxDestroy` | driver | T2 | T2-GREEN | primary |  | ● | ● |  |  | ● | torch.cuda | 12.4 |  |  |
 | `cuGreenCtxGetDevResource` | driver | T2 | T2-GREEN | primary |  | ● |  |  |  |  |  | 12.4 |  |  |
 | `cuGreenCtxStreamCreate` | driver | T2 | T2-GREEN | primary |  | ● | ● |  |  | ● | torch.cuda | 12.5 |  | cuGetProcAddress로 해석 |
@@ -186,7 +186,7 @@ PyTorch는 vLLM·SGLang·TRT-LLM이 의존하는 라이브러리라서 함께 �
 | `cuMemAddressFree` | driver | T2 | T2-VMM-POOL, T2-SLEEP, T2-VMM-SHARE, T3-NVLS, T3-MNNVL | primary | ● | ● | ● | L● |  | ● | c10 | 10.2 |  | VMM 공통 시퀀스 |
 | `cuMemAddressReserve` | driver | T2 | T2-VMM-POOL, T2-SLEEP, T2-VMM-SHARE, T3-NVLS, T3-MNNVL | primary | ● | ● | ● | L● |  | ● | c10, c10d | 10.2 |  | VMM 공통 시퀀스 |
 | `cuMemCreate` | driver | T2 | T2-VMM-POOL, T2-SLEEP, T2-VMM-SHARE, T3-NVLS, T3-MNNVL | primary | ● | ● | ● | L● |  | ● | c10, c10d | 10.2 |  | VMM 공통 시퀀스 |
-| `cuMemExportToShareableHandle` | driver | T2 | T2-VMM-SHARE, T3-NVLS, T3-MNNVL | primary |  | ● | ● |  |  | ● | c10, c10d | 10.2 |  | POSIX fd / FABRIC 핸들 (FABRIC은 IMEX 필요) |
+| `cuMemExportToShareableHandle` | driver | T2 | T2-VMM-SHARE, T3-NVLS, T3-MNNVL | primary |  | ● | ● |  |  | ● | c10, c10d | 10.2 |  | POSIX fd / FABRIC 핸들 (FABRIC은 IMEX 필요). 스트림 순서 풀(cudaMemPool) 메모리는 Runtime cudaMemPoolExportToShareableHandle로도 공유 가능 |
 | `cuMemGetAddressRange` | driver | T2 | T2-VMM-SHARE, T3-MNNVL | primary |  | ● | ● |  |  |  |  |  |  | 포인터가 속한 할당의 base·크기 |
 | `cuMemGetAllocationGranularity` | driver | T2 | T2-VMM-POOL, T2-SLEEP, T2-VMM-SHARE, T3-NVLS, T3-MNNVL | primary | ● | ● | ● | L● |  | ● | c10, c10d | 10.2 |  | VMM 공통 시퀀스 |
 | `cuMemGetAllocationPropertiesFromHandle` | driver | T2 | T2-VMM-SHARE | primary |  | ● | t |  |  |  |  | 10.2 |  |  |
@@ -312,7 +312,7 @@ PyTorch는 vLLM·SGLang·TRT-LLM이 의존하는 라이브러리라서 함께 �
 | `cudaOccupancyMaxPotentialBlockSize` | runtime | T1 | T1-OCC | primary |  |  |  | M● |  | ● | aten |  |  |  |
 | `cudaStreamBeginCapture` | runtime | T1 | T1-GRAPH | primary |  |  | t | L● M● | E● | ● | aten |  |  |  |
 | `cudaStreamEndCapture` | runtime | T1 | T1-GRAPH | primary |  |  | t | L● M● | E● | ● | aten |  |  |  |
-| `cudaStreamGetCaptureInfo` | runtime | T1 | T1-CAPAWARE | primary | ● | ● | ● |  |  | ● | aten, c10, torch.cuda |  |  |  |
+| `cudaStreamGetCaptureInfo` | runtime | T1 | T1-CAPAWARE | primary | h | ● | ● |  |  | ● | aten, c10, torch.cuda |  |  |  |
 | `cudaStreamIsCapturing` | runtime | T1 | T1-CAPAWARE | primary | ● | ● | ● | L● M● |  | ● | c10, inductor |  |  |  |
 | `cudaThreadExchangeStreamCaptureMode` | runtime | T1 | T1-CAPAWARE | primary | ● |  |  |  |  | ● | c10 |  |  |  |
 | `cudaUserObjectCreate` | runtime | T1 | T1-GRAPH | primary |  |  |  |  |  | ● | c10 |  |  | 리소스 수명을 그래프에 묶음 |
@@ -328,7 +328,7 @@ PyTorch는 vLLM·SGLang·TRT-LLM이 의존하는 라이브러리라서 함께 �
 | `cudaGraphAddMemAllocNode` | runtime | T2 | T2-GRAPH-BUILD | primary |  |  |  |  |  | t |  |  |  |  |
 | `cudaGraphAddNode` | runtime | T2 | T2-GRAPH-COND | primary |  |  |  |  |  | ● | aten |  |  | 조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서) |
 | `cudaGraphChildGraphNodeGetGraph` | runtime | T2 | T2-GRAPH-BUILD | primary |  |  |  | M● |  |  |  |  |  |  |
-| `cudaGraphConditionalHandleCreate` | runtime | T2 | T2-GRAPH-COND | primary |  |  |  |  |  | ● | aten |  |  | 조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서) |
+| `cudaGraphConditionalHandleCreate` | runtime | T2 | T2-GRAPH-COND | primary |  |  |  |  |  | ● | aten | 12.3 |  | 조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서) |
 | `cudaGraphCreate` | runtime | T2 | T2-GRAPH-BUILD | primary |  |  | t | M● |  | t |  |  |  |  |
 | `cudaGraphEventRecordNodeGetEvent` | runtime | T2 | T2-GRAPH-BUILD | primary |  |  |  |  |  | ● | torch.cuda |  |  | 캡처한 그래프 분석 (torch.cuda.graphs, cuda-python) |
 | `cudaGraphEventWaitNodeGetEvent` | runtime | T2 | T2-GRAPH-BUILD | primary |  |  |  |  |  | ● | torch.cuda |  |  | 캡처한 그래프 분석 (torch.cuda.graphs, cuda-python) |
@@ -349,13 +349,13 @@ PyTorch는 vLLM·SGLang·TRT-LLM이 의존하는 라이브러리라서 함께 �
 | `cudaLaunchCooperativeKernel` | runtime | T2 | T2-COOP | primary |  |  | ● | L● |  |  |  |  |  |  |
 | `cudaLaunchHostFunc` | runtime | T2 | T2-HOSTFN | primary |  |  | ● | M● | Et | ● | torch.cuda |  |  |  |
 | `cudaLaunchHostFunc_v2` | runtime | T2 | T2-HOSTFN | primary |  |  | ● |  |  |  |  |  |  | TRT-LLM nanobind hostfunc |
-| `cudaLibraryLoadData` | runtime | T2 | T2-KLOAD | alt |  | ● |  |  |  |  |  |  |  |  |
+| `cudaLibraryLoadData` | runtime | T2 | T2-KLOAD | alt |  | ● |  |  |  |  |  |  |  | Runtime library API (cuda-python 바인딩은 v12.8.0부터 포함) |
 | `cudaMallocManaged` | runtime | T2 | T2-UVM | primary |  |  | ● | L● M● |  | ● | c10, torch.cuda |  |  |  |
 | `cudaMemAdvise` | runtime | T2 | T2-UVM | primary |  |  | ● | Lh M● |  | ● | c10, torch.cuda |  |  |  |
 | `cudaMemPrefetchAsync` | runtime | T2 | T2-UVM | primary |  |  | t |  |  |  |  |  |  |  |
 | `cudaOccupancyMaxActiveClusters` | runtime | T2 | T2-CLUSTER | primary |  | ● |  |  |  |  |  | 11.8 | SM90+ |  |
 | `cudaStreamAddCallback` | runtime | T2 | T2-HOSTFN | primary |  |  | ● |  |  |  |  |  |  |  |
-| `cudaStreamBeginCaptureToGraph` | runtime | T2 | T2-GRAPH-COND | primary |  |  |  |  |  | ● | aten |  |  | 조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서) |
+| `cudaStreamBeginCaptureToGraph` | runtime | T2 | T2-GRAPH-COND | primary |  |  |  |  |  | ● | aten | 12.3 |  | 조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서) |
 | `cudaStreamCreateWithPriority` | runtime | T2 | T2-PRIO | primary |  |  | ● |  |  | ● | c10 |  |  |  |
 | `cudaStreamGetPriority` | runtime | T2 | T2-PRIO | primary |  |  |  |  |  | ● | c10 |  |  |  |
 | `cudaStreamUpdateCaptureDependencies` | runtime | T2 | T2-GRAPH-COND | primary |  |  |  |  |  | ● | aten |  |  | 조건 노드 본문을 캡처 (torch.cond·while_loop를 그래프 안에서) |

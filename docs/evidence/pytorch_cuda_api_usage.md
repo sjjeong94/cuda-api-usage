@@ -292,7 +292,7 @@ ExecuTorch 분석의 "AOTI 생성 코드" 항목은 이 코드를 가리킵니�
 | 기법 | API |
 |---|---|
 | 캡처·인스턴스화·replay | `cudaStreamBeginCapture`, `cudaStreamEndCapture`, `cudaGraphInstantiateWithFlags`, `cudaGraphLaunch` |
-| 그래프 안 할당 자동 해제, 노드 우선순위 | `cudaGraphInstantiateFlagAutoFreeOnLaunch \| cudaGraphInstantiateFlagUseNodePriority` |
+| 그래프 메모리 노드 자동 해제(cudaMallocAsync 백엔드용, `CUDAGraph.cpp` 주석), 노드 우선순위 | `cudaGraphInstantiateFlagAutoFreeOnLaunch \| cudaGraphInstantiateFlagUseNodePriority` |
 | 캡처 안전성 | `cudaThreadExchangeStreamCaptureMode`, `cudaStreamIsCapturing`, `cudaStreamGetCaptureInfo` |
 | 그래프 수명에 묶인 리소스 | `cudaUserObjectCreate`, `cudaGraphRetainUserObject` |
 | **조건 노드** (데이터 의존 제어 흐름) | `cudaGraphConditionalHandleCreate`, `cudaGraphAddNode`, `cudaStreamBeginCaptureToGraph`, `cudaStreamUpdateCaptureDependencies` |
@@ -358,14 +358,16 @@ vLLM, SGLang, TensorRT-LLM의 evidence 문서에 "PyTorch에 위임"이라고 �
 | `torch.compile`로 만든 커널 실행 | Inductor | Triton CUBIN을 `cuModuleLoad` → `cuLaunchKernel` (static launcher) |
 | NCCL 통신 | `torch.distributed` (ProcessGroupNCCL) | NCCL 내부 + watchdog `cudaEventQuery` |
 
-**PyTorch가 제공하지만 세 서빙 프레임워크가 쓰지 않고 직접 구현한 것** (evidence 문서 기준):
+**PyTorch가 제공하는데 서빙 프레임워크가 직접 구현하기도 한 것** (evidence 문서와 소스 확인 기준):
 
 | 기능 | PyTorch 제공 | 서빙 프레임워크의 선택 |
 |---|---|---|
 | VMM 기반 할당 | expandable segments | vLLM·SGLang·TRT-LLM은 sleep/wake, 공유, arena를 위해 **자체 VMM 코드** 작성 |
 | Green context | `torch.cuda.green_contexts` | SGLang·TRT-LLM은 **자체 C++ 구현** |
-| NVLS 멀티캐스트 | symmetric memory | TRT-LLM은 **자체 구현** (`mcastDeviceMemory.cpp`) |
-| IPC 버퍼 공유 | `torch.multiprocessing` | vLLM·SGLang은 Custom AllReduce를 위해 **ctypes로 `cudaIpc*` 직접 호출** |
+| NVLS 멀티캐스트 | symmetric memory (`torch.ops.symm_mem.multimem_all_reduce_`) | vLLM(`symm_mem.py`)·SGLang(`torch_symm_mem.py`)은 **PyTorch에 위임**, TRT-LLM만 **자체 구현** (`mcastDeviceMemory.cpp`) |
+| AllReduce용 버퍼 공유 | symmetric memory (`one_shot_all_reduce`, `two_shot_all_reduce_`), `torch.multiprocessing` | vLLM·SGLang은 PyTorch symmetric memory 경로와 **ctypes로 `cudaIpc*`를 직접 부르는 Custom AllReduce**를 함께 둠. TRT-LLM은 자체 구현 |
+
+위임은 CUDA API 직접 호출로 나타나지 않으므로, 각 서빙 프레임워크 evidence 문서의 API 목록에는 보이지 않습니다.
 
 ---
 

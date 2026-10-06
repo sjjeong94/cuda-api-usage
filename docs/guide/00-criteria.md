@@ -11,7 +11,7 @@
 | 등급 | 의미 | 판단 기준 |
 |---|---|---|
 | **T0 필수** | 없으면 서빙 엔진이 동작하지 않음 | 기능상 필수. 5개 프레임워크가 모두 직접 쓰거나 PyTorch를 통해 씀 |
-| **T1 표준 최적화** | 성능 좋은 서빙 엔진이라면 대부분 갖춤 | 3개 이상 프레임워크가 직접 구현했고, 구현 비용이 낮거나 폴백이 단순함 |
+| **T1 표준 최적화** | 성능 좋은 서빙 엔진이라면 대부분 갖춤 | 3개 이상 프레임워크가 갖췄고(직접 구현 또는 PyTorch 위임), 구현 비용이 낮거나 폴백이 단순함 |
 | **T2 고급 최적화** | 특정 병목을 크게 줄이지만 설계 비용이 큼 | 특정 시나리오(RL, PD 분리, JIT 등)에서 효과가 분명함. 채택한 프레임워크 수는 참고만 함 |
 | **T3 시스템 특화** | 특정 하드웨어나 토폴로지에서만 의미 있음 | NVSwitch, GB200 NVL72, Grace(NVLink-C2C), NVLink 없는 PCIe 구성 등에 의존 |
 | AUX | 기능이 아니라 개발·운영 보조 | 프로파일링, 디버깅 |
@@ -69,7 +69,8 @@
   | ExecuTorch | `main` `91b2e90` (2026-10-06), PyTorch `v2.14.0` AOTInductor |
   | PyTorch (의존 라이브러리) | `v2.14.0` `2b3ec34` (2026-08-26) |
 
-- **방법 차이**: TensorRT-LLM과 PyTorch는 cuda-python `8c66b43` 바인딩 선언과 교차 검증했고, 나머지는 grep 결과를 직접 검토했습니다. PyTorch는 이번에 직접 스캔해서 CSV를 만들었고, 다른 다섯 프로젝트는 evidence 문서의 목록을 옮겼습니다. 다섯 프로젝트에 대한 방법론 통일 재집계는 아직 하지 않았습니다.
-- **집계 불일치**: vLLM evidence 문서는 Driver 18개, Runtime 38개라고 적었지만, 문서에 나열된 API를 세면 Driver 16개, Runtime 36개(+ 테스트 전용 프로파일러 2개)입니다. CSV는 나열된 목록을 따랐습니다.
+- **방법 차이**: TensorRT-LLM과 PyTorch는 cuda-python `8c66b43` 바인딩 선언과 교차 검증했고, 나머지는 grep 결과를 직접 검토했습니다. PyTorch는 스크립트(`scripts/pytorch/`)로 직접 스캔해서 CSV를 만들었고, 다른 다섯 프로젝트는 evidence 문서의 목록을 옮겼습니다. 다섯 프로젝트에 대한 방법론 통일 재집계는 아직 하지 않았습니다.
+- **집계 정정**: vLLM evidence 문서는 처음에 Driver 18개, Runtime 38개라고 적었지만, 나열된 API를 세면 Driver 16개, Runtime 36개(+ 테스트 전용 프로파일러 2개)였습니다. 그중 `cudaStreamGetCaptureInfo`는 ROCm 전용 코드(`csrc/rocm/skinny_gemms.cu`)에서만 쓰이므로 `hip-only`로 분류해, 본체 Runtime은 35개입니다. evidence 문서도 이 값으로 고쳤습니다.
+- **위임의 한계**: 직접 호출만 세기 때문에, 라이브러리를 통한 위임은 `features.csv`의 `delegated` 열에 손으로 적은 것만 반영됩니다. 예를 들어 vLLM·SGLang은 NVLS 멀티캐스트 AllReduce를 PyTorch symmetric memory(`torch.ops.symm_mem.multimem_all_reduce_`)에 맡기는데, 이것은 CUDA API 집계에 나타나지 않습니다.
 - **최소 CUDA 버전**: `api_meta.csv`의 `min_cuda` 값 중 12.8(배치 복사)과 13.4(Logical Endpoint)는 evidence 문서에 나온 값이고, 나머지는 CUDA Toolkit 문서 기준입니다. 빈칸은 확인하지 않은 항목입니다. 실제 대상 툴킷의 헤더로 다시 확인하세요.
 - **TensorRT-LLM의 소스 없는 정적 라이브러리**(Git LFS)는 분석하지 못했습니다.

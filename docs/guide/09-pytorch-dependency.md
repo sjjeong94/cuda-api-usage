@@ -22,7 +22,7 @@ PyTorch는 본체 코드에서 Driver API 50개, Runtime API 99개를 씁니다.
 | Occupancy 기반 구성 | T1 | 없음 | — | **직접** |
 | 스트림 순서 메모리 풀 | T1 | `PYTORCH_CUDA_ALLOC_CONF=backend:cudaMallocAsync` | `cudaMallocAsync`, `cudaMemPoolTrimTo` … | 없음 (캐싱 할당기로 충분한 경우가 많음) |
 | KV 배치 복사 | T1 | **없음** | — | **직접** `cuMemcpyBatchAsync` / `cudaMemcpyBatchAsync` (vLLM, SGLang, TRT-LLM) |
-| Custom AllReduce (IPC) | T1 | `torch.multiprocessing` 텐서 공유 (용도가 다름) | `cudaIpcGetMemHandle`, `cudaIpcGetEventHandle` | **직접** `cudaIpc*` + `cuPointerGetAttribute` (vLLM, SGLang은 ctypes) |
+| Custom AllReduce (IPC) | T1 | symmetric memory AllReduce (`torch.ops.symm_mem.one_shot_all_reduce`, `two_shot_all_reduce_`), `torch.multiprocessing` 텐서 공유(용도가 다름) | `cuMemCreate`·`cuMemExportToShareableHandle` (symmetric memory), `cudaIpcGetMemHandle` | PyTorch symmetric memory로 위임하거나(vLLM `symm_mem.py`, SGLang `torch_symm_mem.py`), **직접** `cudaIpc*` + `cuPointerGetAttribute` (vLLM, SGLang은 ctypes, TRT-LLM) |
 | VMM 확장 풀 | T2 | `expandable_segments:True` | `cuMemAddressReserve`, `cuMemCreate`, `cuMemMap` … | 단편화만 줄이면 되면 이걸로 충분. **arena·공유·Sleep이 필요하면 직접** |
 | Sleep / Wake | T2 | **없음** (`MemPool`·pluggable allocator로 연결 지점만 제공) | — | **직접** VMM 할당기를 만들고 `CUDAPluggableAllocator` / `MemPool`로 꽂음 (vLLM `CuMemAllocator`) |
 | VMM 공유 핸들 | T2 | expandable segment 공유(POSIX fd·FABRIC), symmetric memory | `cuMemExportToShareableHandle` … | 자기 버퍼를 원하는 방식으로 공유하려면 **직접** (SGLang, TRT-LLM) |
@@ -32,14 +32,15 @@ PyTorch는 본체 코드에서 Driver API 50개, Runtime API 99개를 씁니다.
 | 그래프 조건 노드 | T2 | `CUDAGraph.begin_capture_to_conditional_node()` | `cudaGraphConditionalHandleCreate`, `cudaStreamBeginCaptureToGraph` | 없음 |
 | Green Context | T2 | `torch.cuda.green_contexts.GreenContext` | `cuGreenCtxCreate`, `cuDevSmResourceSplitByCount`, work queue 설정 | 이걸로 충분. SGLang·TRT-LLM은 자체 C++ 구현 |
 | 스트림 메모리 연산 | T2 | symmetric memory 내부에서만 | `cuStreamWriteValue32` | 프로세스 간 신호는 **직접** (SGLang `cuStreamWaitValue32`) |
-| NVLS 멀티캐스트 | T3 | `torch.distributed._symmetric_memory` | `cuMulticastCreate`, `cuMulticastBindMem` … | 이걸로 충분. TRT-LLM은 자체 구현 |
+| NVLS 멀티캐스트 | T3 | `torch.distributed._symmetric_memory` (`multimem_all_reduce_`) | `cuMulticastCreate`, `cuMulticastBindMem` … | 이걸로 충분. vLLM·SGLang은 이걸 쓰고, TRT-LLM만 자체 구현 |
 | MNNVL / Logical Endpoint | T3 | FABRIC 핸들 지원 확인, expandable segment FABRIC 공유 | `cuMemCreate(FABRIC)` | Logical Endpoint는 **직접** (TRT-LLM) |
 
 ### 한 줄 요약
 
 - **PyTorch가 대신해 주는 것**: T0 전체(자기 커널 launch는 제외), CUDA Graph 캡처·실행, 할당기, pinned 메모리, 스트림·이벤트.
-- **PyTorch가 제공하지만 서빙 엔진은 보통 직접 구현하는 것**: VMM, green context, 멀티캐스트. PyTorch 구현은 범용이라, sleep/wake, KV arena, PD multiplexing 같은 서빙 전용 요구를 맞추기 어렵기 때문입니다.
-- **PyTorch에 없어서 반드시 직접 하는 것**: PDL, KV 배치 복사, Custom AllReduce, Sleep/Wake, 자체 JIT·CUBIN 로딩, 그래프 dedup, Logical Endpoint.
+- **PyTorch가 제공하지만 서빙 엔진은 보통 직접 구현하는 것**: VMM, green context. PyTorch 구현은 범용이라, sleep/wake, KV arena, PD multiplexing 같은 서빙 전용 요구를 맞추기 어렵기 때문입니다.
+- **PyTorch에 맡기기도 하고 직접 구현하기도 하는 것**: AllReduce와 NVLS 멀티캐스트. vLLM·SGLang은 PyTorch symmetric memory 경로와 자체 IPC Custom AllReduce를 함께 두고, TRT-LLM은 둘 다 자체 구현합니다.
+- **PyTorch에 없어서 반드시 직접 하는 것**: PDL, KV 배치 복사, Sleep/Wake, 자체 JIT·CUBIN 로딩, 그래프 dedup, Logical Endpoint.
 
 ---
 
@@ -73,7 +74,7 @@ VMM 할당기(Sleep/Wake, KV arena)를 직접 만들었다면, 그 메모리를 
 
 ### 2.5 그래프 메모리 풀을 공유하세요
 
-여러 그래프(batch 크기별, prefill·decode)를 캡처할 때 `graph_pool_handle()`로 풀 하나를 공유하면, 동시에 replay하지 않는 그래프끼리 메모리를 겹쳐 씁니다(SGLang `runner_utils/pool.py`). PyTorch가 `AutoFreeOnLaunch`로 인스턴스화하므로, 그래프 안에서 할당한 메모리는 다음 launch 전에 자동으로 해제됩니다.
+여러 그래프(batch 크기별, prefill·decode)를 캡처할 때 `graph_pool_handle()`로 풀 하나를 공유하면, 동시에 replay하지 않는 그래프끼리 메모리를 겹쳐 씁니다(SGLang `runner_utils/pool.py`). 기본 캐싱 할당기에서 그래프 안의 할당은 이 private pool에서 나오고, 그래프가 살아 있는 동안 풀이 유지됩니다. 그래서 풀을 공유한 그래프를 동시에 replay하면 안 됩니다. PyTorch가 인스턴스화에 붙이는 `AutoFreeOnLaunch`는 cudaMallocAsync 백엔드에서 생기는 그래프 메모리 노드용이고(`CUDAGraph.cpp` 주석), 기본 할당기의 풀 공유와는 관계없습니다.
 
 ### 2.6 PyTorch 설정으로 끝나는 최적화를 먼저 확인하세요
 
@@ -98,4 +99,4 @@ VMM 할당기(Sleep/Wake, KV arena)를 직접 만들었다면, 그 메모리를 
 | KV 오프로드 | `cudaHostRegister`, `cudaMemcpyAsync`, 이벤트 + 배치 복사 | 배치 복사만 직접, pin은 `cudaHostRegister` 직접 또는 `cudart()` |
 | Sleep/Wake | VMM 전체 | VMM 전체 + pluggable allocator 연결 |
 
-**결론**: [PT] 프로파일은 T0와 CUDA Graph 기반을 PyTorch에서 얻습니다. 직접 다루는 CUDA API는 **PyTorch가 제공하지 않는 T1 최적화(PDL, 배치 복사, Custom AllReduce)와 서빙 전용 T2~T3 기능**에 집중됩니다. vLLM의 Driver API 16개가 모두 VMM·배치 복사·IPC base 주소에 쓰이는 것이 그 예입니다.
+**결론**: [PT] 프로파일은 T0와 CUDA Graph 기반을 PyTorch에서 얻습니다. 직접 다루는 CUDA API는 **PyTorch가 제공하지 않는 T1 최적화(PDL, 배치 복사), PyTorch 구현으로 부족할 때의 Custom AllReduce, 서빙 전용 T2~T3 기능**에 집중됩니다. vLLM의 Driver API 16개가 모두 VMM·배치 복사·IPC base 주소에 쓰이는 것이 그 예입니다.

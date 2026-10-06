@@ -89,6 +89,9 @@ def main():
         for label in filter(None, f["frameworks"].split(";")):
             if not any(used_in_prod(a, fw_key[label]) for a in apis):
                 raise SystemExit(f"features.csv: {fid} claims {label}, but no tagged API is used there")
+        both = set(filter(None, f["frameworks"].split(";"))) & set(filter(None, f["delegated"].split(";")))
+        if both:
+            raise SystemExit(f"features.csv: {fid} lists {sorted(both)} as both implementing and delegating")
 
     lines = []
     w = lines.append

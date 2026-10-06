@@ -172,6 +172,7 @@
 ### 2.6 제외한 항목
 - `cudaMallocAsync`(`multimodal_gen/runtime/distributed/ipc_cuda.py`): 에러 메시지 문자열에만 나옵니다.
 - `cudaEvent`(`moe_overlap.py`), `cuInit`, `cuModuleLoadData`: 주석에만 나옵니다.
+- PyTorch symmetric memory를 통한 통신은 CUDA API 직접 호출이 아니므로 목록에 없습니다. `srt/distributed/device_communicators/torch_symm_mem.py`(`--enable-torch-symm-mem`)가 `torch.ops.symm_mem.multimem_all_reduce_`(NVLS)를 씁니다.
 - 테스트·벤치마크에서만 쓰는 것: `cudaMalloc`, `cudaFree`, `cudaFuncGetAttributes`, `cudaOccupancyMaxActiveBlocksPerMultiprocessor` 등 위에 나온 API의 재사용뿐이고, 새로 추가되는 API는 없습니다.
 
 ---
@@ -307,15 +308,17 @@ CuTe DSL로 컴파일한 CUBIN을 라이브러리 API로 로드합니다 (FlashA
 | 커널 튜닝 | A, J | ○ (TMA) | ● |
 | Pinned 메모리 / Offload | S, M | | ● |
 
-- SGLang은 네 프로젝트 중 **Driver API를 가장 넓게 씁니다 (46개).** VMM, green context, 그래프 노드 분석, 스트림 메모리 연산처럼 Runtime API로는 할 수 없는 기능을 **Python(`cuda-python`)에서 직접** 다룹니다.
+- SGLang은 Driver API를 **46개** 씁니다. 다섯 프로젝트 중 TensorRT-LLM(84개) 다음으로 많습니다. VMM, green context, 그래프 노드 분석, 스트림 메모리 연산을 **Python(`cuda-python`)에서 직접** 다룹니다. 이 중 VMM과 스트림 메모리 연산은 Runtime 대응이 없고, 그래프 노드 분석은 Runtime API(`cudaGraphGetNodes` 등)로도 되며, green context는 CUDA 13.x부터 Runtime 버전이 있습니다.
 - 커널 쪽(AOT/JIT)은 vLLM과 비슷하게 Runtime API로 PDL, smem 설정, occupancy 계산을 합니다. TMA처럼 Driver 전용 기능만 entry point로 찾아서 씁니다.
 - CUDA Graph는 PyTorch로 캡처하지만, 캡처한 그래프를 **Driver API로 열어 분석하고 executable을 공유**하는 최적화를 직접 구현합니다.
 
 ### 네 프로젝트 비교
 
+(TensorRT-LLM까지 포함한 비교는 [TensorRT-LLM 문서](tensorrt_llm_cuda_api_usage.md#다섯-프로젝트-비교)에 있습니다.)
+
 | 항목 | vLLM | Ollama | ExecuTorch | SGLang |
 |---|---|---|---|---|
-| Driver API 개수 | 18 | 26 (본체 8 + llama.cpp·MLX) | 0 (+ AOTI 생성 코드 9) | **46** |
+| Driver API 개수 | 16 | 26 (본체 8 + llama.cpp·MLX) | 0 (+ AOTI 생성 코드 7, 조건부 2) | **46** |
 | Driver API 주 용도 | VMM(sleep mode), 배치 복사 | GPU 탐지, VMM 풀, JIT 실행 | 생성 커널 로드·실행 | VMM 공유, green context, 그래프 분석 |
 | VMM 활용 | sleep mode | 메모리 풀 | 없음 | KV arena, 가중치·feature 공유 |
 | CUDA Graph | PyTorch에 위임 | 직접 (캡처 / 노드 조립) | 직접 (캡처) | PyTorch 캡처 + Driver API로 분석·dedup |

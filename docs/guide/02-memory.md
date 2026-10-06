@@ -1,6 +1,6 @@
 # 02. 메모리: 할당기, VMM, Sleep/Wake, 공유
 
-서빙 엔진의 메모리 설계는 세 가지를 정해야 합니다. (1) 요청마다 생기는 할당을 **동기화 없이** 처리하는 방법, (2) 메모리를 **해제했다가 다시 쓰는** 방법, (3) 메모리를 **다른 프로세스·GPU와 공유**하는 방법입니다. (1)은 Runtime API로 충분하고, (2)와 (3)부터는 Driver의 VMM API가 필요합니다.
+서빙 엔진의 메모리 설계는 세 가지를 정해야 합니다. (1) 요청마다 생기는 할당을 **동기화 없이** 처리하는 방법, (2) 메모리를 **해제했다가 같은 주소로 다시 쓰는** 방법, (3) 메모리를 **다른 프로세스·GPU와 공유**하는 방법입니다. (1)은 Runtime API로 충분하고, (2)에는 Driver의 VMM API가 필요합니다. (3)은 Runtime 메모리 풀의 공유 핸들로도 되지만, 주소 범위를 직접 제어하거나 멀티캐스트와 묶으려면 VMM이 필요합니다.
 
 | 기능 | 등급 | 핵심 API | 종류 |
 |---|:---:|---|---|
@@ -32,6 +32,7 @@
 
 - **목적**: host 메모리를 GPU 주소 공간에 매핑해, 복사 없이 커널이 PCIe/C2C 너머로 직접 읽게 합니다. 가중치나 KV를 GPU에 다 둘 수 없을 때 씁니다.
 - **필수 API**: `cudaHostAlloc(cudaHostAllocMapped)`(또는 `cudaHostRegister(cudaHostRegisterMapped)`), `cudaHostGetDevicePointer`
+- **참고**: 64-bit UVA 환경에서는 pinned 메모리가 플래그 없이도 디바이스 주소 공간에 매핑되고, `cudaHostGetDevicePointer`가 호스트 포인터와 같은 값을 돌려줍니다. 위 프레임워크들은 이식성(비 UVA, Windows WDDM 등)을 위해 명시적으로 호출합니다.
 - **근거**
   - vLLM UVA CPU 가중치 오프로드(`csrc/libtorch_stable/cuda_view.cu`, `get_cuda_view_from_cpu_tensor`)
   - SGLang HiCache zero-copy 전송 커널(`transfer.cu`, `runtime.cuh`)
@@ -41,7 +42,7 @@
 
 ## T2-VMM-POOL VMM 확장 풀·arena
 
-- **목적**: 가상 주소 공간을 크게 예약해 두고 물리 메모리를 필요한 만큼만 매핑합니다. 주소가 연속으로 유지되므로 풀을 키워도 단편화가 생기지 않고, 포인터가 바뀌지 않습니다.
+- **목적**: 가상 주소 공간을 크게 예약해 두고 물리 메모리를 필요한 만큼만 매핑합니다. 주소가 연속으로 유지되므로 풀을 키울 때 세그먼트가 흩어지지 않고(외부 단편화 감소), 포인터가 바뀌지 않습니다. 풀 안의 블록 분할에서 생기는 내부 단편화는 할당기가 따로 다뤄야 합니다.
 - **필수 API (Driver)**
 
   | 단계 | API |
@@ -88,7 +89,8 @@
   - SGLang: 멀티모달 feature를 tokenizer 프로세스에서 scheduler로 무복사 전달(`--mm-feature-transport=cuda_vmm`), DWDP 전문가 가중치 공유, Custom AllReduce v2
   - TRT-LLM: NVLS·UserBuffers, MNNVL, DWDP
   - PyTorch: expandable segment를 다른 프로세스와 공유(POSIX fd·FABRIC), symmetric memory(`torch.distributed._symmetric_memory`)의 버퍼 교환, `isFabricSupported()`(FABRIC 핸들로 작은 할당을 export·import해 보는 방식의 지원 확인)
-- **결론**: legacy IPC(`cudaIpc*`, [T1-IPC](06-multi-gpu.md))는 `cudaMalloc` 메모리를 같은 노드에서만 공유합니다. **VMM 메모리 공유, 노드 간 공유, 멀티캐스트**가 필요하면 이 Driver API가 필요합니다.
+- **Runtime 대안**: 스트림 순서 메모리 풀도 공유 핸들을 지원합니다. `cudaMemPoolCreate`에 핸들 타입(`cudaMemHandleTypePosixFileDescriptor`, `cudaMemHandleTypeFabric`)을 지정하고 `cudaMemPoolExportToShareableHandle` → `cudaMemPoolImportFromShareableHandle`로 풀을 공유한 뒤, `cudaMemPoolExportPointer`/`ImportPointer`로 개별 할당을 넘깁니다. 다섯 프로젝트 중 이 경로를 쓰는 곳은 없습니다.
+- **결론**: legacy IPC(`cudaIpc*`, [T1-IPC](06-multi-gpu.md))는 `cudaMalloc` 메모리를 같은 노드에서만 공유합니다. 단순한 프로세스·노드 간 공유는 Runtime 풀 공유로도 됩니다. **이미 VMM으로 만든 메모리의 공유, 주소 범위를 직접 이어 붙이는 공유(DWDP), 멀티캐스트 바인딩**이 필요하면 이 Driver API가 필요합니다.
 
 ## T2-UVM Unified (managed) memory
 
@@ -110,5 +112,6 @@
 | 크기를 모르는 KV 영역을 포인터 변화 없이 키우기 | VMM arena (Driver) |
 | 메모리를 반납했다가 같은 주소로 복원 (RL) | VMM Sleep/Wake (Driver) |
 | 같은 노드의 다른 프로세스와 `cudaMalloc` 버퍼 공유 | `cudaIpc*` (Runtime) |
-| VMM 버퍼 공유, 노드 간 공유 | 공유 핸들 (Driver) |
+| 풀 메모리를 다른 프로세스·노드와 공유 | 메모리 풀 공유 핸들 (Runtime) |
+| VMM 버퍼 공유, 주소 공간 이어 붙이기, 멀티캐스트 | VMM 공유 핸들 (Driver) |
 | host 데이터를 복사 없이 커널이 읽기 | mapped host (Runtime) |

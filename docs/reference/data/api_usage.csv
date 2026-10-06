@@ -42,7 +42,7 @@ vllm,core,cudaIpcOpenMemHandle,prod
 vllm,core,cudaIpcCloseMemHandle,prod
 vllm,core,cudaStreamIsCapturing,prod
 vllm,core,cudaThreadExchangeStreamCaptureMode,prod
-vllm,core,cudaStreamGetCaptureInfo,prod
+vllm,core,cudaStreamGetCaptureInfo,hip-only
 vllm,core,cudaStreamSynchronize,prod
 vllm,core,cudaGetLastError,prod
 vllm,core,cudaGetErrorString,prod

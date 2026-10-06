@@ -17,7 +17,7 @@
 
 ## 1. CUDA Driver API
 
-vLLM 본체는 **18개**를 사용합니다.
+vLLM 본체는 **16개**를 사용합니다. (이전 판은 18개로 적었지만, 아래 목록을 세면 16개입니다.)
 
 ### 1.1 vLLM 본체 (런타임 코드)
 
@@ -74,7 +74,7 @@ vLLM 본체는 **18개**를 사용합니다.
 
 ## 2. CUDA Runtime API
 
-vLLM 본체는 **호스트 API 38개와 디바이스 측 API 2개**를 사용합니다.
+vLLM 본체는 **호스트 API 35개와 디바이스 측 API 2개**를 사용합니다. ROCm 전용 코드에서만 쓰는 `cudaStreamGetCaptureInfo` 1개는 따로 셉니다. (이전 판은 38개로 적었습니다.)
 
 ### 2.1 C++/CUDA 확장 (`csrc/`)
 
@@ -124,7 +124,7 @@ vLLM 본체는 **호스트 API 38개와 디바이스 측 API 2개**를 사용합
 |---|---|
 | `cudaStreamIsCapturing` | `custom_all_reduce.cuh` |
 | `cudaThreadExchangeStreamCaptureMode` | `custom_all_reduce.cu` |
-| `cudaStreamGetCaptureInfo` | `rocm/skinny_gemms.cu` (hipify 대상) |
+| `cudaStreamGetCaptureInfo` | `rocm/skinny_gemms.cu` (hipify 대상, **ROCm 전용**이라 집계에서 제외) |
 | `cudaStreamSynchronize` | custom_all_reduce, rocm/skinny_gemms |
 
 #### 에러 처리
@@ -166,6 +166,7 @@ Python에서 런타임 API를 부르는 경로는 두 가지입니다.
 
 - 주석에만 나오는 것: `cudaMemGetInfo`, `cudaStreamWaitEvent`, `cudaMemcpy2D/3DAsync` (Python 쪽)
 - 이벤트·스트림 생성(`cudaEventRecord`, `cudaStreamCreate`)과 graph capture는 vLLM이 직접 하지 않고 PyTorch(`torch.cuda.*`)를 통해 이뤄집니다.
+- PyTorch symmetric memory를 통한 통신도 CUDA API 직접 호출이 아니므로 목록에 없습니다. `distributed/device_communicators/symm_mem.py`는 `torch.ops.symm_mem.multimem_all_reduce_`(NVLS)와 `two_shot_all_reduce_`를 쓰고, `custom_all_reduce.py`는 버퍼를 `torch_symm_mem.empty`/`rendezvous`로 만들 수 있습니다.
 
 ---
 

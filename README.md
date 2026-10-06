@@ -7,16 +7,16 @@ LLM 서빙 프레임워크를 만들 때 **어떤 CUDA Driver·Runtime API가 �
 ## 핵심 결론
 
 1. **최소 서빙 엔진은 Runtime API만으로 만들 수 있습니다.** 필수(T0) API는 디바이스·메모리·전송·스트림·이벤트·커널 실행·에러 처리의 Runtime API이고, ExecuTorch 런타임은 Driver API를 하나도 쓰지 않습니다. → [01](docs/guide/01-t0-essential.md)
-2. **표준 최적화(T1)도 대부분 Runtime API로 됩니다.** CUDA Graph, PDL, occupancy 기반 launch, 스트림 순서 메모리 풀, Custom AllReduce, KV 배치 복사가 여기에 속합니다. T1에 속하는 Driver API는 5개입니다. 그중 Runtime으로 대체할 수 없는 것은 Custom AllReduce의 `cuPointerGetAttribute` 하나입니다. `cuMemcpyBatchAsync`와 `cuMemHostGetDevicePointer`는 Runtime 버전이 있고, `cuLaunchKernelEx`와 `cuOccupancyMaxPotentialBlockSize`는 JIT 커널을 쓸 때만 필요합니다.
+2. **표준 최적화(T1)도 대부분 Runtime API로 됩니다.** CUDA Graph, PDL, occupancy 기반 launch, 스트림 순서 메모리 풀, Custom AllReduce, KV 배치 복사가 여기에 속합니다. T1에 속하는 Driver API는 6개입니다. 그중 Runtime으로 대체할 수 없는 것은 Custom AllReduce의 `cuPointerGetAttribute` 하나입니다. `cuMemcpyBatchAsync`는 Runtime 버전이 있고, `cuLaunchKernelEx`, `cuOccupancyMaxPotentialBlockSize`, `cuOccupancyMaxActiveBlocksPerMultiprocessor`는 JIT 커널(`CUfunction`)을 쓸 때만 필요합니다. `cuMemHostGetDevicePointer`는 TRT-LLM 테스트에서만 쓰입니다.
 3. **Driver API가 꼭 필요한 경우는 세 가지로 모입니다.**
-   - **메모리 주소 제어**: VMM으로 주소를 유지한 채 확장·반납·공유 (VMM 풀, Sleep/Wake, 프로세스·노드 간 공유, NVLS, MNNVL)
-   - **커널 바이너리 직접 관리**: 미리 빌드한 CUBIN, NVRTC JIT, AOT 생성 코드 로드와 TMA descriptor 생성
-   - **하드웨어 자원 분할·연결**: green context(SM 분할), 멀티캐스트, Logical Endpoint, GPU 측 스트림 신호
+   - **메모리 주소 제어**: VMM으로 주소를 유지한 채 확장·반납, 주소 범위를 직접 제어하는 공유 (VMM 풀, Sleep/Wake, VMM 공유, NVLS, MNNVL). 단순한 프로세스·노드 간 공유는 Runtime 메모리 풀(`cudaMemPoolExportToShareableHandle`, POSIX fd·FABRIC)로도 됩니다.
+   - **TMA descriptor 생성**과 기존 Driver 기반 커널 로딩 코드. 미리 빌드한 CUBIN·NVRTC JIT 로드 자체는 Runtime library API(`cudaLibraryLoadData`, `cudaLibraryGetKernel`)로도 됩니다.
+   - **하드웨어 자원 연결**: 멀티캐스트, Logical Endpoint, GPU 측 스트림 신호. green context(SM 분할)는 CUDA 12.x까지 Driver 전용이고, CUDA 13.x에는 Runtime 버전(`cudaGreenCtxCreate`)이 있습니다.
    → [08](docs/guide/08-driver-vs-runtime.md)
 4. **PyTorch 위에 만드는지에 따라 직접 다룰 범위가 달라집니다.** PyTorch 기반(vLLM, SGLang, TRT-LLM)은 할당기·스트림·CUDA Graph 캡처를 PyTorch에 맡기고 T1~T3만 직접 구현합니다. 독립형(llama.cpp, MLX, ExecuTorch)은 T0 전체와 그래프·할당기를 직접 다룹니다. → [00](docs/guide/00-criteria.md#2-프로파일), [09](docs/guide/09-pytorch-dependency.md)
-   - PyTorch 자체도 Driver API 50개, Runtime API 99개를 씁니다. 하지만 **PDL, KV 배치 복사, Custom AllReduce, Sleep/Wake는 제공하지 않으므로** PyTorch 기반 엔진도 이 기능들은 직접 구현해야 합니다.
-   - PyTorch가 제공하는데도 서빙 프레임워크가 직접 구현한 기능도 있습니다. VMM(expandable segments), green context, NVLS 멀티캐스트(symmetric memory)는 서빙 전용 요구(sleep/wake, PD multiplexing 등)에 맞추려고 자체 구현을 썼습니다.
-5. **새 API는 실행 중에 찾아서 쓰세요.** 배치 복사, green context, Logical Endpoint, TMA는 `cuGetProcAddress`나 `cudaGetDriverEntryPoint(ByVersion)`로 심볼을 해석하고, 없으면 폴백합니다. 세 프로젝트가 모두 이 패턴을 씁니다. → [08](docs/guide/08-driver-vs-runtime.md#2-t2-vergate-버전-의존-심볼-해석)
+   - PyTorch 자체도 Driver API 50개, Runtime API 99개를 씁니다. 하지만 **PDL, KV 배치 복사, Sleep/Wake는 제공하지 않으므로** PyTorch 기반 엔진도 이 기능들은 직접 구현해야 합니다. AllReduce는 PyTorch symmetric memory(`torch.ops.symm_mem.two_shot_all_reduce_`, `multimem_all_reduce_`)로 위임할 수 있고, vLLM·SGLang은 이 경로와 자체 IPC Custom AllReduce를 함께 둡니다.
+   - PyTorch가 제공하는데도 서빙 프레임워크가 직접 구현한 기능도 있습니다. VMM(expandable segments)과 green context는 서빙 전용 요구(sleep/wake, PD multiplexing 등)에 맞추려고 자체 구현을 썼습니다. NVLS 멀티캐스트는 TRT-LLM만 자체 구현하고, vLLM·SGLang은 PyTorch symmetric memory에 맡깁니다.
+5. **새 API는 실행 중에 찾아서 쓰세요.** 배치 복사, green context, Logical Endpoint, TMA는 `cuGetProcAddress`나 `cudaGetDriverEntryPoint(ByVersion)`로 심볼을 해석하고, 없으면 폴백합니다. vLLM, SGLang, TRT-LLM, PyTorch가 모두 이 패턴을 씁니다. → [08](docs/guide/08-driver-vs-runtime.md#2-t2-vergate-버전-의존-심볼-해석)
 
 6. **지금 API는 같은 일을 하는 이름이 너무 많습니다.** 266개 중 여섯 코드베이스가 모두 쓰는 것은 13개뿐이고, 113개는 한 곳에서만 씁니다. Driver/Runtime 중복, `Ex`·`WithFlags`·`Async` 변형, 객체별 getter, context·last error 같은 암묵적 상태가 원인입니다. 같은 기능 41개를 **56개 함수**로 표현하는 재설계안을 사고 실험으로 정리했습니다. 이 형태는 서빙 프레임워크의 내부 추상화 계층으로 바로 쓸 수 있습니다. → [재설계안](docs/redesign/cuda-api-redesign.md)
 
@@ -35,12 +35,13 @@ LLM 서빙 프레임워크를 만들 때 **어떤 CUDA Driver·Runtime API가 �
 | | Peer access·P2P 복사 | | [06](docs/guide/06-multi-gpu.md) |
 | **T2 고급 최적화** | VMM 확장 풀·arena, Sleep/Wake, VMM 공유 핸들 | ● | [02](docs/guide/02-memory.md) |
 | | Unified memory | | [02](docs/guide/02-memory.md) |
-| | 외부 CUBIN·JIT 커널 로딩 | ● | [05](docs/guide/05-kernel-loading.md) |
+| | 외부 CUBIN·JIT 커널 로딩 | 선택 | [05](docs/guide/05-kernel-loading.md) |
 | | TMA | ● | [04](docs/guide/04-execution.md) |
 | | Thread Block Cluster, cooperative launch, 호스트 콜백 | | [04](docs/guide/04-execution.md) |
 | | 그래프 직접 조립·분석 | 선택 | [04](docs/guide/04-execution.md) |
 | | 그래프 조건 노드 | | [04](docs/guide/04-execution.md) |
-| | Green Context (SM 분할), 스트림 메모리 연산 | ● | [07](docs/guide/07-scheduling-isolation.md) |
+| | Green Context (SM 분할) | ● (CUDA 13.x는 선택) | [07](docs/guide/07-scheduling-isolation.md) |
+| | 스트림 메모리 연산 | ● | [07](docs/guide/07-scheduling-isolation.md) |
 | | 스트림 우선순위 | | [07](docs/guide/07-scheduling-isolation.md) |
 | | 드라이버만으로 GPU 탐지, 버전 의존 심볼 해석, 컨텍스트 관리 | ● | [08](docs/guide/08-driver-vs-runtime.md) |
 | **T3 시스템 특화** | NVLS 멀티캐스트, MNNVL fabric 메모리, Logical Endpoint | ● | [06](docs/guide/06-multi-gpu.md) |
@@ -60,14 +61,14 @@ LLM 서빙 프레임워크를 만들 때 **어떤 CUDA Driver·Runtime API가 �
 | 커널 사이의 빈틈 줄이기 (Hopper+) | `cudaLaunchKernelEx` + `cudaGridDependencySynchronize` / `cudaTriggerProgrammaticLaunchCompletion` | T1 |
 | 요청별 할당을 동기화 없이 | `cudaMallocAsync`, `cudaMemPoolCreate`, `cudaMemPoolSetAttribute(ReleaseThreshold)` | T1 |
 | KV를 host로 오프로드 | `cudaHostRegister`, `cudaMemcpyAsync`, 이벤트 + `cuMemcpyBatchAsync`(12.8+, `cuGetProcAddress`) | T0+T1 |
-| 같은 노드 TP AllReduce를 NCCL보다 빠르게 | `cudaIpcGetMemHandle`/`OpenMemHandle`, `cuPointerGetAttribute`, `cudaThreadExchangeStreamCaptureMode` | T1 |
+| 같은 노드 TP의 작은 AllReduce를 NCCL보다 빠르게 | `cudaIpcGetMemHandle`/`OpenMemHandle`, `cuPointerGetAttribute`, `cudaThreadExchangeStreamCaptureMode` · [PT] PyTorch symmetric memory(`torch.ops.symm_mem.two_shot_all_reduce_`)로 위임 가능 | T1 |
 | RL 학습과 GPU 번갈아 쓰기 (Sleep/Wake) | `cuMemAddressReserve`, `cuMemCreate`, `cuMemMap`, `cuMemSetAccess`, `cuMemUnmap`, `cuMemRelease` + 백업 복사 | T2 |
 | KV 영역을 포인터 변화 없이 키우기 | VMM (위와 같음) + `cuMemGetAllocationGranularity` | T2 |
 | 프로세스 간 GPU 버퍼 무복사 전달 | `cuMemExportToShareableHandle`, `cuMemImportFromShareableHandle`, (`cuStreamWaitValue32`/`WriteValue32`로 순서) | T2 |
-| 모델 설정에 맞춘 JIT 커널 | NVRTC + `cuLibraryLoadData`, `cuLibraryGetKernel`, `cuKernelSetAttribute`, `cuLaunchKernelEx` | T2 |
+| 모델 설정에 맞춘 JIT 커널 | NVRTC + `cuLibraryLoadData`, `cuLibraryGetKernel`, `cuKernelSetAttribute`, `cuLaunchKernelEx` (Runtime: `cudaLibraryLoadData`, `cudaLibraryGetKernel`, `cudaKernelSetAttributeForDevice`, `cudaLaunchKernelEx`) | T2 |
 | Hopper TMA 커널 직접 작성 | `cuTensorMapEncodeTiled` (`cudaGetDriverEntryPointByVersion`으로) | T2 |
-| 한 GPU에서 prefill·decode 간섭 줄이기 | `cuDeviceGetDevResource`, `cuDevSmResourceSplitByCount`, `cuDevResourceGenerateDesc`, `cuGreenCtxCreate`, `cuGreenCtxStreamCreate` | T2 |
-| NVSwitch에서 AllReduce 가속 | `cuMulticastCreate`, `cuMulticastAddDevice`, `cuMulticastBindMem` + VMM 공유 | T3 |
+| 한 GPU에서 prefill·decode 간섭 줄이기 | `cuDeviceGetDevResource`, `cuDevSmResourceSplitByCount`, `cuDevResourceGenerateDesc`, `cuGreenCtxCreate`, `cuGreenCtxStreamCreate` (CUDA 13.x Runtime: `cudaGreenCtxCreate`, `cudaExecutionCtxStreamCreate`) | T2 |
+| NVSwitch에서 AllReduce 가속 | `cuMulticastCreate`, `cuMulticastAddDevice`, `cuMulticastBindMem` + VMM 공유 · [PT] `torch.ops.symm_mem.multimem_all_reduce_`로 위임 가능 | T3 |
 | GB200 NVL72에서 노드 간 GPU 메모리 매핑 | VMM + `CU_MEM_HANDLE_TYPE_FABRIC` | T3 |
 
 전체 목록은 [API 카탈로그](docs/reference/api-catalog.md)의 3절(기능별 API)에 있습니다.
@@ -80,7 +81,7 @@ LLM 서빙 프레임워크를 만들 때 **어떤 CUDA Driver·Runtime API가 �
 
 | 프레임워크 | 프로파일 | Driver | Runtime (호스트) | Runtime (디바이스 측) | Driver를 쓰는 곳 |
 |---|---|---:|---:|---:|---|
-| vLLM | PT | 16 | 36 | 2 | Sleep mode(VMM), KV 배치 복사, IPC base 주소 |
+| vLLM | PT | 16 | 35 | 2 | Sleep mode(VMM), KV 배치 복사, IPC base 주소 |
 | SGLang | PT | 46 | 44 | 2 | VMM arena·공유, green context, 그래프 분석, TMA, CuTe DSL 로딩 |
 | TensorRT-LLM | PT | 84 | 72 | 2 | CUBIN·JIT 로딩, KV v2, Sleep/Wake, NVLS, MNNVL, Logical Endpoint, green context |
 | Ollama — 본체 | — | 8 | 0 | 0 | 드라이버만으로 GPU 탐지 |

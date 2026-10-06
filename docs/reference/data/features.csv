@@ -4,7 +4,7 @@ T0-CAP,T0,하드웨어·버전 조회,01-t0-essential.md,vLLM;SGLang;TRT-LLM;Oll
 T0-MEMINFO,T0,메모리 용량 산정,01-t0-essential.md,TRT-LLM;Ollama;ExecuTorch;PyTorch,vLLM;SGLang
 T0-ALLOC,T0,디바이스 메모리 할당·초기화,01-t0-essential.md,vLLM;SGLang;TRT-LLM;Ollama;ExecuTorch;PyTorch,
 T0-XFER,T0,Host↔Device 전송과 pinned 버퍼,01-t0-essential.md,vLLM;SGLang;TRT-LLM;Ollama;ExecuTorch;PyTorch,
-T0-STREAM,T0,스트림·이벤트 동기화,01-t0-essential.md,vLLM;SGLang;TRT-LLM;Ollama;ExecuTorch;PyTorch,vLLM;SGLang
+T0-STREAM,T0,스트림·이벤트 동기화,01-t0-essential.md,TRT-LLM;Ollama;ExecuTorch;PyTorch,vLLM;SGLang
 T0-LAUNCH,T0,커널 실행·설정,01-t0-essential.md,vLLM;SGLang;TRT-LLM;Ollama;ExecuTorch;PyTorch,
 T0-ERR,T0,에러 처리,01-t0-essential.md,vLLM;SGLang;TRT-LLM;Ollama;ExecuTorch;PyTorch,
 T1-GRAPH,T1,CUDA Graph (캡처·재실행),04-execution.md,Ollama;ExecuTorch;PyTorch,vLLM;SGLang;TRT-LLM
@@ -33,7 +33,7 @@ T2-STREAMMEM,T2,스트림 메모리 연산 (GPU 측 신호),07-scheduling-isolat
 T2-DRVDETECT,T2,드라이버만으로 GPU 탐지,08-driver-vs-runtime.md,Ollama,
 T2-VERGATE,T2,버전 의존 심볼 해석,08-driver-vs-runtime.md,vLLM;SGLang;TRT-LLM;PyTorch,
 T2-CTX,T2,컨텍스트 관리 (Driver·Runtime 혼용),08-driver-vs-runtime.md,vLLM;SGLang;TRT-LLM;PyTorch,
-T3-NVLS,T3,NVLS 멀티캐스트,06-multi-gpu.md,TRT-LLM;PyTorch,
+T3-NVLS,T3,NVLS 멀티캐스트,06-multi-gpu.md,TRT-LLM;PyTorch,vLLM;SGLang
 T3-MNNVL,T3,MNNVL fabric 메모리,06-multi-gpu.md,TRT-LLM;PyTorch,
 T3-LE,T3,Logical Endpoint,06-multi-gpu.md,TRT-LLM,
 T3-LINKAWARE,T3,링크 인지 복사 전략,03-kv-cache.md,TRT-LLM,

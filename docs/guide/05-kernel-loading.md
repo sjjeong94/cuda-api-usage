@@ -1,15 +1,15 @@
 # 05. 커널 로딩: 직접 빌드, 미리 빌드한 CUBIN, JIT, AOT
 
-커널을 어떻게 공급하느냐에 따라 Driver API가 필요한지가 갈립니다. **커널을 프레임워크와 함께 nvcc로 빌드하면 Runtime API로 충분합니다.** 커널 바이너리를 **실행 중에 로드**해야 한다면(미리 빌드한 CUBIN, NVRTC JIT, 생성 코드) Driver의 module/library API가 필요합니다.
+커널을 어떻게 공급하느냐에 따라 필요한 API가 갈립니다. **커널을 프레임워크와 함께 nvcc로 빌드하면 로딩 API가 필요 없습니다.** 커널 바이너리를 **실행 중에 로드**해야 한다면(미리 빌드한 CUBIN, NVRTC JIT, 생성 코드) library API가 필요합니다. library API는 Driver(`cuLibrary*`)와 Runtime(`cudaLibrary*`) 양쪽에 있으므로 Driver가 꼭 필요하지는 않습니다. 다만 분석한 프로젝트 대부분은 Driver의 module/library API를 씁니다(Runtime은 SGLang의 `cudaLibraryLoadData`뿐).
 
 | 공급 방식 | 대표 | 로딩 API | Driver 필요 |
 |---|---|---|:---:|
 | 함께 빌드 (`<<<>>>`, `cudaLaunchKernel(Ex)`) | vLLM, SGLang AOT, llama.cpp | 없음 (fatbin이 실행 파일에 포함) | 아니요 |
 | 실행 시 nvcc 빌드 후 확장 모듈로 로드 | SGLang JIT (`tvm_ffi`) | 없음 (일반 공유 라이브러리) | 아니요 |
-| **미리 빌드한 CUBIN** | TRT-LLM FMHA v2, trtllmGen | `cuModuleLoadData` | **예** |
-| **NVRTC JIT** | TRT-LLM XQA·DeepGEMM, MLX | `cuLibraryLoadData` / `cuModuleLoadDataEx` | **예** |
+| **미리 빌드한 CUBIN** | TRT-LLM FMHA v2, trtllmGen | `cuModuleLoadData` | 선택 (Runtime `cudaLibraryLoadData`로 대체 가능) |
+| **NVRTC JIT** | TRT-LLM XQA·DeepGEMM, MLX | `cuLibraryLoadData` / `cuModuleLoadDataEx` | 선택 (Runtime `cudaLibraryLoadData`로 대체 가능) |
 | **DSL 컴파일 CUBIN** | SGLang CuTe DSL | `cuLibraryLoadData` 또는 `cudaLibraryLoadData` | 선택 |
-| **AOT 생성 코드에 내장** | ExecuTorch (AOTInductor → Triton) | `cuModuleLoadData` (생성 코드 안에서) | **예** (생성 코드가 사용) |
+| **AOT 생성 코드에 내장** | ExecuTorch (AOTInductor → Triton) | `cuModuleLoadData` (생성 코드 안에서) | **예** (생성 코드가 Driver를 사용하므로 런타임에 libcuda 필요) |
 
 ---
 
@@ -29,7 +29,7 @@
 - **API**: `cuLibraryLoadData` → `cuLibraryGetKernel`(이름으로) 또는 `cuLibraryEnumerateKernels`/`cuLibraryGetKernelCount`(전부 나열) → `cuKernelSetAttribute` → `cuKernelGetFunction` 또는 `cuLaunchKernelEx`에 바로 → `cuLibraryUnload`
 - **선택 API**: `cuLibraryGetGlobal`(전역 변수 주소, XQA), `cuKernelGetName`(DeepGEMM)
 - **특징**: context에 묶이지 않으므로 한 번 로드해 모든 디바이스에서 씁니다. 새로 만든다면 이 경로를 추천합니다.
-- **Runtime 대응**: `cudaLibraryLoadData` (SGLang `cute_dsl_ptxas.py`)
+- **Runtime 대응**: `cudaLibraryLoadData`/`cudaLibraryLoadFromFile` → `cudaLibraryGetKernel` 또는 `cudaLibraryEnumerateKernels` → `cudaKernelSetAttributeForDevice` → `cudaLaunchKernel(Ex)`에 `cudaKernel_t`를 그대로 넘김 → `cudaLibraryUnload`. `cudaLibraryGetGlobal`도 있습니다. 분석한 프로젝트 중에는 SGLang(`cute_dsl_ptxas.py`)만 `cudaLibraryLoadData`를 씁니다. Runtime 경로를 쓰면 libcuda에 직접 링크하지 않고도 외부 CUBIN을 로드할 수 있습니다.
 - **근거**: TRT-LLM XQA JIT(`decoderXQAImplJIT/cubinObj.cpp`), DeepGEMM JIT(`deep_gemm/runtime.cuh`), SGLang CuTe DSL(`cute_dsl_utils.py`)
 
 ### 공통으로 필요한 것
@@ -63,6 +63,6 @@
 ## 결론
 
 - **커널을 함께 빌드한다면 이 장의 API는 필요 없습니다.** vLLM은 module/library API를 전혀 쓰지 않습니다.
-- **모델 설정(head 수, head dim, 양자화)에 맞춘 특화 커널**을 실행 중에 만들려면 NVRTC + `cuLibraryLoadData`가 필요합니다 (TRT-LLM XQA, DeepGEMM, MLX fused 커널).
-- **빌드 시간과 바이너리 크기**를 줄이려고 커널을 별도 CUBIN으로 배포한다면 `cuModuleLoadData`/`cuLibraryLoadData`가 필요합니다 (TRT-LLM).
-- 새로 만든다면 **Library API를 기본으로** 하세요. context 관리가 단순해집니다.
+- **모델 설정(head 수, head dim, 양자화)에 맞춘 특화 커널**을 실행 중에 만들려면 NVRTC + library API(`cuLibraryLoadData` 또는 `cudaLibraryLoadData`)가 필요합니다 (TRT-LLM XQA, DeepGEMM, MLX fused 커널).
+- **빌드 시간과 바이너리 크기**를 줄이려고 커널을 별도 CUBIN으로 배포한다면 로딩 API가 필요합니다 (TRT-LLM은 `cuModuleLoadData`/`cuLibraryLoadData`).
+- 새로 만든다면 **Library API를 기본으로** 하세요. context 관리가 단순해집니다. 나머지 코드가 Runtime이라면 Runtime library API로 통일할 수 있습니다. 대상 툴킷에서 필요한 기능(JIT 옵션, 전역 변수 조회 등)이 Runtime 쪽에 있는지 확인하세요.

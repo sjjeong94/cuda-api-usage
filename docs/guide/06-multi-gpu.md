@@ -35,7 +35,8 @@
 - **CUDA Graph와 함께 쓰기**: 캡처 중 쓰인 버퍼는 주소만 기록해 두었다가 캡처가 끝난 뒤 일괄로 IPC 등록합니다 (vLLM·SGLang `custom_all_reduce.cuh`).
 - **변형**: Lamport 방식 fused AllReduce + RMSNorm (vLLM MiniMax, cuda-python으로 `cudaIpc*`)
 - **근거**: vLLM, SGLang(vLLM과 같은 구조의 ctypes 래퍼), TRT-LLM
-- **결론**: TP 서빙의 **표준 최적화**입니다. Runtime API + Driver API 1개(`cuPointerGetAttribute`)로 만들 수 있습니다.
+- **PyTorch로 위임하는 대안**: PyTorch symmetric memory가 AllReduce 커널(`torch.ops.symm_mem.one_shot_all_reduce`, `two_shot_all_reduce_`, `multimem_all_reduce_`)을 제공합니다. vLLM은 `distributed/device_communicators/symm_mem.py`에서 이를 쓰고, `custom_all_reduce.py`도 버퍼를 `torch_symm_mem.empty`/`rendezvous`로 만들 수 있습니다. SGLang은 `torch_symm_mem.py`(`--enable-torch-symm-mem`)로 같은 경로를 둡니다. 이 경우 CUDA API를 직접 부르지 않습니다.
+- **결론**: TP 서빙의 **표준 최적화**입니다. Runtime API + Driver API 1개(`cuPointerGetAttribute`)로 만들 수 있습니다. [PT] 엔진이라면 PyTorch symmetric memory로 시작하고, 캡처·fusion 요구 때문에 부족할 때 직접 구현하는 순서도 가능합니다.
 
 ## T1-P2P Peer access·P2P 복사
 
@@ -73,10 +74,10 @@
   | 바인딩 | `cuMulticastBindMem` (해제·재바인딩 `cuMulticastUnbind`) |
   | 매핑 | `cuMemAddressReserve` → `cuMemMap` → `cuMemSetAccess` |
 
-- **요구 사항**: CUDA 12.1+, NVSwitch 시스템(HGX H100/H200/B200 등)
+- **요구 사항**: CUDA 12.1+, NVLink SHARP를 지원하는 3세대 이상 NVSwitch 시스템(HGX H100/H200/B200 등). HGX A100의 NVSwitch는 멀티캐스트를 지원하지 않습니다.
 - **근거**: TRT-LLM `runtime/mcastDeviceMemory.cpp`, `ipcNvlsMemory.cu`, UserBuffers(`userbuffers-host.cpp`, GEMM과 통신 겹치기). SGLang은 FlashInfer AllReduce fusion을 쓰기 전에 `cuMulticastGetGranularity`로 지원 여부만 점검합니다.
-- **PyTorch**: `torch.distributed._symmetric_memory`(CUDA 백엔드, `CUDASymmetricMemory.cu`)가 같은 시퀀스로 멀티캐스트 버퍼를 만듭니다. 지원 여부는 세 가지로 확인합니다: CUDA 12.3 이상으로 빌드했는지(컴파일 시점), `cuMulticastCreate` 심볼이 있는지(드라이버 535 이상), `CU_DEVICE_ATTRIBUTE_MULTICAST_SUPPORTED` 값. signal pad는 `cuMemsetD32Async`로 초기화하고 `cuStreamWriteValue32`로 씁니다. [PT] 엔진이라면 직접 구현하기 전에 이 기능을 먼저 검토할 만합니다.
-- **결론**: NVSwitch 시스템에서 TP AllReduce를 극한까지 줄이려면 필요합니다. **Runtime 대응 API가 없습니다.**
+- **PyTorch**: `torch.distributed._symmetric_memory`(CUDA 백엔드, `CUDASymmetricMemory.cu`)가 같은 시퀀스로 멀티캐스트 버퍼를 만듭니다. 지원 여부는 세 가지로 확인합니다: CUDA 12.3 이상으로 빌드했는지(컴파일 시점), `cuMulticastCreate` 심볼이 있는지(드라이버 535 이상), `CU_DEVICE_ATTRIBUTE_MULTICAST_SUPPORTED` 값. signal pad는 `cuMemsetD32Async`로 초기화하고 `cuStreamWriteValue32`로 씁니다. vLLM(`symm_mem.py`, `multimem_all_reduce_`)과 SGLang(`torch_symm_mem.py`)은 NVLS AllReduce를 이 기능에 맡깁니다. [PT] 엔진이라면 직접 구현하기 전에 이 기능을 먼저 검토할 만합니다.
+- **결론**: NVSwitch 시스템에서 TP AllReduce를 극한까지 줄이려면 필요합니다. **Runtime 대응 API가 없습니다.** 직접 구현한 곳은 TRT-LLM뿐이고, vLLM·SGLang은 PyTorch에 위임합니다.
 
 ## T3-MNNVL MNNVL fabric 메모리
 
@@ -99,6 +100,6 @@
 ## 단계별 도입 순서
 
 1. **NCCL만** (CUDA API 직접 호출 없음): 모든 엔진의 출발점
-2. **+ Custom AllReduce (T1)**: Runtime IPC + `cuPointerGetAttribute`. 같은 노드 TP의 decode 지연 개선
+2. **+ Custom AllReduce (T1)**: Runtime IPC + `cuPointerGetAttribute`, 또는 [PT]라면 PyTorch symmetric memory. 같은 노드 TP의 decode 지연 개선
 3. **+ VMM 공유 (T2)**: 할당기를 VMM으로 바꾸면 IPC를 대체하고 DWDP 같은 가중치 공유가 가능해짐
-4. **+ NVLS / MNNVL / Logical Endpoint (T3)**: 대상 하드웨어가 NVSwitch·NVL72일 때만
+4. **+ NVLS / MNNVL / Logical Endpoint (T3)**: 대상 하드웨어가 NVSwitch·NVL72일 때만. NVLS는 [PT]라면 PyTorch symmetric memory로 먼저 시도

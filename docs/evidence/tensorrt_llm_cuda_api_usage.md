@@ -408,8 +408,8 @@ GPU를 locality domain(0, 1) 두 개로 나눠, domain마다 SM 파티션(green 
 
 | 항목 | vLLM | Ollama | ExecuTorch | SGLang | TensorRT-LLM |
 |---|---|---|---|---|---|
-| Driver API 개수 | 18 | 26 (본체 8 + llama.cpp·MLX) | 0 (+ AOTI 생성 코드 9) | 46 | **84** |
-| Runtime API 개수 (호스트) | 38 | 48 (llama.cpp) / 55 (MLX) | 37 (+ AOTI 20) | 44 | **72** |
+| Driver API 개수 | 16 | 26 (본체 8 + llama.cpp·MLX) | 0 (+ AOTI 생성 코드 7, 조건부 2) | 46 | **84** |
+| Runtime API 개수 (호스트) | 35 | 48 (llama.cpp) / 55 (MLX) | 37 (+ AOTI 19, HIP 전용 1) | 44 | **72** |
 | 커널 공급 방식 | 손으로 작성 + 외부 라이브러리 | 손으로 작성 + JIT (MLX) | AOT 생성 (Inductor) | 손으로 작성 (AOT + JIT) | **미리 빌드한 CUBIN** + 손으로 작성 + JIT (XQA, DeepGEMM) |
 | VMM 활용 | sleep mode | 메모리 풀 | 없음 | KV arena, 가중치·feature 공유 | KV v2, sleep, NVLS, MNNVL, DWDP |
 | 멀티 GPU 메모리 | IPC | P2P, PCIe AllReduce | 없음 | IPC, VMM 공유 핸들 | IPC, **NVLS 멀티캐스트, MNNVL fabric, Logical Endpoint** |

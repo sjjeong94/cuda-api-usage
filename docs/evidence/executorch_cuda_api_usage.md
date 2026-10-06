@@ -245,7 +245,7 @@ AOTI가 만들기 어려운 저비트 GEMM은 ExecuTorch 쪽 CUDA 커널로 연�
 | int4/5/6/8 `plain_mm` (dp4a) | `cudaMalloc`, `cudaFree` | 활성값 int8 양자화 버퍼 (커지면 재할당) |
 | int4mm (tinygemm 계열) | `cudaFuncGetAttributes` | 커널 속성 조회 |
 
-### 3.8.1 SM별 AOTI 변형 선택 [E]
+### 3.9 SM별 AOTI 변형 선택 [E]
 
 하나의 `.pte`/`.ptd`에 여러 SM용으로 컴파일한 AOTI 변형을 함께 담을 수 있습니다(`merge_ptes.py`, `emit_multi_arch_kernel`). 로드할 때 GPU의 compute capability를 읽어 맞는 변형을 고르고, 맞는 것이 없으면 PTX 폴백이나 SM 미지정 변형을 씁니다.
 
@@ -253,13 +253,13 @@ AOTI가 만들기 어려운 저비트 GEMM은 ExecuTorch 쪽 CUDA 커널로 연�
 |---|
 | `cudaGetDevice`, `cudaGetDeviceProperties` (`major * 10 + minor`) |
 
-### 3.9 실행 완료 추적 [A]
+### 3.10 실행 완료 추적 [A]
 
 | API | 용도 |
 |---|---|
 | `cudaEventCreate`, `cudaEventRecord`, `cudaEventQuery`, `cudaEventSynchronize`, `cudaEventDestroy` | 실행 끝에 이벤트를 기록해 호스트가 블로킹 없이 완료 여부를 확인 |
 
-### 3.10 안전성 / 관측
+### 3.11 안전성 / 관측
 
 | 목적 | API | 위치 |
 |---|---|---|
