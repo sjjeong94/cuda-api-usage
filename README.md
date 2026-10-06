@@ -18,6 +18,8 @@ LLM 서빙 프레임워크를 만들 때 **어떤 CUDA Driver·Runtime API가 �
    - PyTorch가 제공하는데도 서빙 프레임워크가 직접 구현한 기능도 있습니다. VMM(expandable segments), green context, NVLS 멀티캐스트(symmetric memory)는 서빙 전용 요구(sleep/wake, PD multiplexing 등)에 맞추려고 자체 구현을 썼습니다.
 5. **새 API는 실행 중에 찾아서 쓰세요.** 배치 복사, green context, Logical Endpoint, TMA는 `cuGetProcAddress`나 `cudaGetDriverEntryPoint(ByVersion)`로 심볼을 해석하고, 없으면 폴백합니다. 세 프로젝트가 모두 이 패턴을 씁니다. → [08](docs/guide/08-driver-vs-runtime.md#2-t2-vergate-버전-의존-심볼-해석)
 
+6. **지금 API는 같은 일을 하는 이름이 너무 많습니다.** 266개 중 여섯 코드베이스가 모두 쓰는 것은 13개뿐이고, 113개는 한 곳에서만 씁니다. Driver/Runtime 중복, `Ex`·`WithFlags`·`Async` 변형, 객체별 getter, context·last error 같은 암묵적 상태가 원인입니다. 같은 기능 41개를 **56개 함수**로 표현하는 재설계안을 사고 실험으로 정리했습니다. 이 형태는 서빙 프레임워크의 내부 추상화 계층으로 바로 쓸 수 있습니다. → [재설계안](docs/redesign/cuda-api-redesign.md)
+
 ---
 
 ## 등급별 기능 지도
@@ -106,6 +108,9 @@ docs/
 │   ├── 07-scheduling-isolation.md ← green context, 스트림 우선순위, GPU 측 신호
 │   ├── 08-driver-vs-runtime.md    ← Driver가 필요한 경우, 버전 분기, 컨텍스트, 호출 방식
 │   └── 09-pytorch-dependency.md   ← PyTorch가 제공하는 것과 [PT] 엔진이 직접 할 일
+├── redesign/
+│   ├── cuda-api-redesign.md       ← 재설계 사고 실험: 266개 → 56개
+│   └── data/api_redesign_map.csv  ←   현재 API → 재설계 API 매핑
 ├── reference/
 │   ├── api-catalog.md             ← API 266개 카탈로그 (생성물)
 │   ├── hw-requirements.md         ← 기능별 최소 CUDA·하드웨어
@@ -122,7 +127,8 @@ docs/
     └── pytorch_cuda_api_usage.md  ← 의존 라이브러리 PyTorch (직접 스캔)
 scripts/
 ├── gen_api_catalog.py             ← CSV → api-catalog.md 생성·검증
-└── pytorch/                       ← PyTorch 소스 스캔 → api_usage.csv (재현용)
+├── pytorch/                       ← PyTorch 소스 스캔 → api_usage.csv (재현용)
+└── redesign/build_map.py          ← 재설계 매핑 생성·검증
 ```
 
 **데이터를 고칠 때**: `docs/reference/data/`의 CSV를 고친 뒤 `python3 scripts/gen_api_catalog.py`를 실행하세요. 스크립트는 모든 API에 메타데이터가 있는지, `features.csv`에 적은 프레임워크가 실제로 그 기능의 API를 쓰는지 검사합니다.

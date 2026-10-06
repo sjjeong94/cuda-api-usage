@@ -1,0 +1,267 @@
+api,new_api,group,change,reason
+cuCtxCreate,,,removed,사용자에게 보이는 context 없음. 모든 객체가 디바이스(또는 파티션)에 속함
+cuCtxFromGreenCtx,,,removed,파티션이 곧 큐를 만드는 단위라 context 변환 불필요
+cuCtxGetCurrent,,,removed,사용자에게 보이는 context 없음. 모든 객체가 디바이스(또는 파티션)에 속함
+cuCtxGetDevice,,,removed,사용자에게 보이는 context 없음. 모든 객체가 디바이스(또는 파티션)에 속함
+cuCtxGetId,,,removed,사용자에게 보이는 context 없음. 모든 객체가 디바이스(또는 파티션)에 속함
+cuCtxPopCurrent,,,removed,사용자에게 보이는 context 없음. 모든 객체가 디바이스(또는 파티션)에 속함
+cuCtxPushCurrent,,,removed,사용자에게 보이는 context 없음. 모든 객체가 디바이스(또는 파티션)에 속함
+cuCtxSetCurrent,,,removed,사용자에게 보이는 context 없음. 모든 객체가 디바이스(또는 파티션)에 속함
+cuCtxSynchronize,device-synchronize,,helper,디바이스의 모든 큐 fence에 대기하는 헬퍼
+cudaDeviceCanAccessPeer,cuxDevicePeerQuery,device,merged,접근 가능 여부 + 링크 종류(NVLink/C2C/PCIe)
+cudaDeviceEnablePeerAccess,,,removed,접근 권한은 매핑마다 cuxMemMap/cuxPoolCreate의 access 목록으로 지정
+cudaDeviceGetAttribute,cuxDeviceQuery,device,merged,"정적 속성·capability(VMM, multicast, fabric, RDMA, TMA, cluster)를 구조체 하나로"
+cudaDeviceGetDefaultMemPool,cuxDeviceQuery,device,merged,기본 풀 핸들은 디바이스 정보에 포함
+cudaDeviceGetGraphMemAttribute,cuxPoolQuery,pool,merged,그래프 풀 통계
+cudaDeviceGetMemPool,cuxDeviceQuery,device,merged,기본 풀 핸들은 디바이스 정보에 포함
+cudaDeviceGetPCIBusId,cuxDeviceQuery,device,merged,"정적 속성·capability(VMM, multicast, fabric, RDMA, TMA, cluster)를 구조체 하나로"
+cudaDeviceGetStreamPriorityRange,cuxQueueCreate,queue,merged,flags·priority·partition을 descriptor로
+cudaDeviceGraphMemTrim,cuxPoolTrim,pool,merged,그래프 안 할당도 풀을 거치므로 같은 trim
+cudaDeviceReset,,,removed,객체 단위 cuxRelease로 정리. 프로세스 전체 리셋 불필요
+cudaDeviceSetGraphMemAttribute,cuxPoolQuery,pool,merged,그래프 풀 통계
+cudaDeviceSynchronize,device-synchronize,,helper,디바이스의 모든 큐 fence에 대기하는 헬퍼
+cudaDriverGetVersion,cuxGetApi,init,merged,테이블의 버전 필드 + 디바이스 capability 비트
+cudaEventCreate,cuxFenceCreate,fence,merged,이벤트를 64-bit timeline fence로 통합 (timing·shareable은 descriptor)
+cudaEventCreateWithFlags,cuxFenceCreate,fence,merged,이벤트를 64-bit timeline fence로 통합 (timing·shareable은 descriptor)
+cudaEventDestroy,cuxRelease,object,merged,
+cudaEventElapsedTime,cuxFenceQuery,fence,merged,timing fence는 signal 시각을 함께 기록
+cudaEventQuery,cuxFenceQuery,fence,merged,
+cudaEventRecord,cuxEnqueueSignal,command,merged,큐에서 fence를 값 N으로 signal. 메모리 값 쓰기도 같은 명령
+cudaEventRecordWithFlags,cuxEnqueueSignal,command,merged,큐에서 fence를 값 N으로 signal. 메모리 값 쓰기도 같은 명령
+cudaEventSynchronize,cuxFenceWait,fence,merged,
+cudaFree,cuxPoolFree,pool,merged,
+cudaFreeAsync,cuxPoolFree,pool,merged,
+cudaFreeHost,cuxPoolFree,pool,merged,
+cudaFuncGetAttributes,cuxKernelQuery,kernel,merged,
+cudaFuncSetAttribute,cuxKernelSetAttr,kernel,merged,
+cudaGetDevice,current-device,,helper,코어는 모든 호출이 디바이스·큐를 명시. 암묵적 현재 디바이스는 헬퍼만
+cudaGetDeviceCount,cuxDeviceList,device,merged,
+cudaGetDeviceProperties,cuxDeviceQuery,device,merged,"정적 속성·capability(VMM, multicast, fabric, RDMA, TMA, cluster)를 구조체 하나로"
+cudaGetDriverEntryPoint,cuxGetApi,init,merged,버전 지정 함수 테이블 한 번으로 심볼 해석 대체
+cudaGetDriverEntryPointByVersion,cuxGetApi,init,merged,버전 지정 함수 테이블 한 번으로 심볼 해석 대체
+cudaGetErrorName,cuxGetErrorInfo,init,merged,
+cudaGetErrorString,cuxGetErrorInfo,init,merged,
+cudaGetKernel,cuxKernelFromSymbol,kernel,merged,nvcc로 함께 빌드한 커널도 같은 kernel 핸들로
+cudaGetLastError,,,removed,"프로세스 전역 last-error 없음. 모든 호출이 상태를 반환하고, 비동기 에러는 cuxQueueQuery로 큐별 조회"
+cudaGetSymbolAddress,cuxGetGlobal,kernel,merged,
+cudaGraphAddChildGraphNode,cuxGraphAddNode,graph,merged,"노드 종류는 descriptor의 type, 의존성은 인자"
+cudaGraphAddDependencies,cuxGraphAddNode,graph,merged,"노드 종류는 descriptor의 type, 의존성은 인자"
+cudaGraphAddEmptyNode,cuxGraphAddNode,graph,merged,"노드 종류는 descriptor의 type, 의존성은 인자"
+cudaGraphAddKernelNode,cuxGraphAddNode,graph,merged,"노드 종류는 descriptor의 type, 의존성은 인자"
+cudaGraphAddMemAllocNode,cuxGraphAddNode,graph,merged,"노드 종류는 descriptor의 type, 의존성은 인자"
+cudaGraphAddNode,cuxGraphAddNode,graph,merged,"노드 종류는 descriptor의 type, 의존성은 인자"
+cudaGraphChildGraphNodeGetGraph,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cudaGraphConditionalHandleCreate,cuxGraphAddNode,graph,merged,"노드 종류는 descriptor의 type, 의존성은 인자"
+cudaGraphCreate,cuxGraphCreate,graph,merged,
+cudaGraphDebugDotPrint,graph-dot,,helper,cuxGraphInspect 결과로 헬퍼가 DOT 생성
+cudaGraphDestroy,cuxRelease,object,merged,
+cudaGraphEventRecordNodeGetEvent,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cudaGraphEventWaitNodeGetEvent,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cudaGraphExecDestroy,cuxRelease,object,merged,
+cudaGraphExecGetId,cuxGraphNodeQuery,graph,merged,exec·graph id는 조회 구조체의 필드
+cudaGraphExecUpdate,cuxGraphUpdate,graph,merged,
+cudaGraphGetEdges,cuxGraphInspect,graph,merged,
+cudaGraphGetId,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cudaGraphGetNodes,cuxGraphInspect,graph,merged,
+cudaGraphGetRootNodes,cuxGraphInspect,graph,merged,
+cudaGraphHostNodeGetParams,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cudaGraphInstantiate,cuxGraphInstantiate,graph,merged,
+cudaGraphInstantiateWithFlags,cuxGraphInstantiate,graph,merged,
+cudaGraphKernelNodeGetAttribute,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cudaGraphKernelNodeGetParams,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cudaGraphKernelNodeSetAttribute,cuxGraphUpdate,graph,merged,노드 descriptor를 바꾼 그래프로 exec 갱신
+cudaGraphLaunch,cuxEnqueueGraph,command,merged,
+cudaGraphMemAllocNodeGetParams,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cudaGraphMemFreeNodeGetParams,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cudaGraphNodeGetDependencies,cuxGraphInspect,graph,merged,
+cudaGraphNodeGetDependentNodes,cuxGraphInspect,graph,merged,
+cudaGraphNodeGetToolsId,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cudaGraphNodeGetType,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cudaGraphRetainUserObject,cuxGraphRetain,graph,merged,
+cudaGridDependencySynchronize,(device API 유지),,helper,디바이스 측 API는 커널 언어의 일부라 호스트 ABI 재설계 범위 밖. 그대로 유지
+cudaHostAlloc,cuxPoolAlloc,pool,merged,"풀의 location(device/host/managed/mapped)으로 구분, queue=NULL이면 즉시 사용 가능"
+cudaHostGetDevicePointer,cuxPointerQuery,memory,merged,base·size·location·handle·디바이스 측 주소를 구조체 하나로
+cudaHostRegister,cuxMemCreate,memory,merged,location=host-import (기존 host 메모리를 물리 메모리 객체로)
+cudaHostUnregister,cuxRelease,object,merged,
+cudaIpcCloseMemHandle,cuxRelease,object,merged,
+cudaIpcGetEventHandle,cuxExport,object,merged,
+cudaIpcGetMemHandle,cuxExport,object,merged,legacy IPC와 VMM 공유를 handle type으로 통합
+cudaIpcOpenEventHandle,cuxImport,object,merged,
+cudaIpcOpenMemHandle,cuxImport,object,merged,
+cudaLaunchCooperativeKernel,cuxEnqueueLaunch,command,merged,grid·block·smem·cluster·cooperative·PDL·priority를 launch descriptor로
+cudaLaunchHostFunc,cuxEnqueueHostFn,command,merged,
+cudaLaunchHostFunc_v2,cuxEnqueueHostFn,command,merged,
+cudaLaunchKernel,cuxEnqueueLaunch,command,merged,grid·block·smem·cluster·cooperative·PDL·priority를 launch descriptor로
+cudaLaunchKernelEx,cuxEnqueueLaunch,command,merged,grid·block·smem·cluster·cooperative·PDL·priority를 launch descriptor로
+cudaLaunchKernelExC,cuxEnqueueLaunch,command,merged,grid·block·smem·cluster·cooperative·PDL·priority를 launch descriptor로
+cudaLibraryLoadData,cuxLibraryLoad,kernel,merged,context 독립 library 하나로. 파일·메모리·JIT 옵션은 descriptor
+cudaMalloc,cuxPoolAlloc,pool,merged,"풀의 location(device/host/managed/mapped)으로 구분, queue=NULL이면 즉시 사용 가능"
+cudaMallocAsync,cuxPoolAlloc,pool,merged,"풀의 location(device/host/managed/mapped)으로 구분, queue=NULL이면 즉시 사용 가능"
+cudaMallocFromPoolAsync,cuxPoolAlloc,pool,merged,"풀의 location(device/host/managed/mapped)으로 구분, queue=NULL이면 즉시 사용 가능"
+cudaMallocHost,cuxPoolAlloc,pool,merged,"풀의 location(device/host/managed/mapped)으로 구분, queue=NULL이면 즉시 사용 가능"
+cudaMallocManaged,cuxPoolAlloc,pool,merged,"풀의 location(device/host/managed/mapped)으로 구분, queue=NULL이면 즉시 사용 가능"
+cudaMemAdvise,cuxMemAdvise,memory,merged,
+cudaMemcpy,cuxEnqueueCopy,command,merged,항상 배치. 항목마다 1D/2D·방향 자동 판별. 동기 복사는 헬퍼(enqueue + wait)
+cudaMemcpy2DAsync,cuxEnqueueCopy,command,merged,항상 배치. 항목마다 1D/2D·방향 자동 판별. 동기 복사는 헬퍼(enqueue + wait)
+cudaMemcpyAsync,cuxEnqueueCopy,command,merged,항상 배치. 항목마다 1D/2D·방향 자동 판별. 동기 복사는 헬퍼(enqueue + wait)
+cudaMemcpyBatchAsync,cuxEnqueueCopy,command,merged,항상 배치. 항목마다 1D/2D·방향 자동 판별. 동기 복사는 헬퍼(enqueue + wait)
+cudaMemcpyPeerAsync,cuxEnqueueCopy,command,merged,항상 배치. 항목마다 1D/2D·방향 자동 판별. 동기 복사는 헬퍼(enqueue + wait)
+cudaMemcpyToSymbol,cuxEnqueueCopy,command,merged,항상 배치. 항목마다 1D/2D·방향 자동 판별. 동기 복사는 헬퍼(enqueue + wait)
+cudaMemGetInfo,cuxDeviceMemInfo,device,merged,
+cudaMemPoolCreate,cuxPoolCreate,pool,merged,
+cudaMemPoolDestroy,cuxRelease,object,merged,
+cudaMemPoolGetAttribute,cuxPoolQuery,pool,merged,
+cudaMemPoolSetAccess,cuxPoolUpdate,pool,merged,
+cudaMemPoolSetAttribute,cuxPoolUpdate,pool,merged,
+cudaMemPoolTrimTo,cuxPoolTrim,pool,merged,
+cudaMemPrefetchAsync,cuxEnqueueCopy,command,merged,dst location만 지정한 migrate 항목
+cudaMemset,cuxEnqueueFill,command,merged,"항목마다 원소 크기(1/2/4 B) 지정, 배치"
+cudaMemsetAsync,cuxEnqueueFill,command,merged,"항목마다 원소 크기(1/2/4 B) 지정, 배치"
+cudaOccupancyAvailableDynamicSMemPerBlock,cuxKernelQuery,kernel,merged,launch descriptor를 넘기면 occupancy 결과를 함께 계산
+cudaOccupancyMaxActiveBlocksPerMultiprocessor,cuxKernelQuery,kernel,merged,launch descriptor를 넘기면 occupancy 결과를 함께 계산
+cudaOccupancyMaxActiveClusters,cuxKernelQuery,kernel,merged,launch descriptor를 넘기면 occupancy 결과를 함께 계산
+cudaOccupancyMaxPotentialBlockSize,cuxKernelQuery,kernel,merged,launch descriptor를 넘기면 occupancy 결과를 함께 계산
+cudaPeekAtLastError,,,removed,"프로세스 전역 last-error 없음. 모든 호출이 상태를 반환하고, 비동기 에러는 cuxQueueQuery로 큐별 조회"
+cudaPointerGetAttributes,cuxPointerQuery,memory,merged,base·size·location·handle·디바이스 측 주소를 구조체 하나로
+cudaProfilerStart,,,removed,도구 제어는 런타임 ABI가 아니라 도구 API(CUPTI·NVTX) 몫
+cudaProfilerStop,,,removed,도구 제어는 런타임 ABI가 아니라 도구 API(CUPTI·NVTX) 몫
+cudaRuntimeGetVersion,cuxGetApi,init,merged,테이블의 버전 필드 + 디바이스 capability 비트
+cudaSetDevice,current-device,,helper,코어는 모든 호출이 디바이스·큐를 명시. 암묵적 현재 디바이스는 헬퍼만
+cudaSetDeviceFlags,cuxFenceWait,fence,merged,spin/yield/block은 대기 호출의 옵션
+cudaStreamAddCallback,cuxEnqueueHostFn,command,merged,
+cudaStreamBeginCapture,cuxCaptureBegin,graph,merged,캡처 대상 그래프(새 그래프 또는 조건 노드 본문)를 descriptor로
+cudaStreamBeginCaptureToGraph,cuxCaptureBegin,graph,merged,캡처 대상 그래프(새 그래프 또는 조건 노드 본문)를 descriptor로
+cudaStreamCreate,cuxQueueCreate,queue,merged,flags·priority·partition을 descriptor로
+cudaStreamCreateWithFlags,cuxQueueCreate,queue,merged,flags·priority·partition을 descriptor로
+cudaStreamCreateWithPriority,cuxQueueCreate,queue,merged,flags·priority·partition을 descriptor로
+cudaStreamDestroy,cuxRelease,object,merged,
+cudaStreamEndCapture,cuxCaptureEnd,graph,merged,
+cudaStreamGetCaptureInfo,cuxQueueQuery,queue,merged,완료 상태·우선순위·캡처 상태·에러를 한 번에
+cudaStreamGetPriority,cuxQueueQuery,queue,merged,완료 상태·우선순위·캡처 상태·에러를 한 번에
+cudaStreamIsCapturing,cuxQueueQuery,queue,merged,완료 상태·우선순위·캡처 상태·에러를 한 번에
+cudaStreamQuery,cuxQueueQuery,queue,merged,완료 상태·우선순위·캡처 상태·에러를 한 번에
+cudaStreamSynchronize,cuxFenceWait,fence,merged,큐마다 내장 timeline fence에 대기
+cudaStreamUpdateCaptureDependencies,cuxCaptureEnd,graph,merged,
+cudaStreamWaitEvent,cuxEnqueueWait,command,merged,큐가 fence 값 N까지 대기
+cudaThreadExchangeStreamCaptureMode,,,removed,캡처는 캡처 중인 큐에만 영향. 다른 스레드의 할당은 풀이 캡처 안전하게 처리
+cudaTriggerProgrammaticLaunchCompletion,(device API 유지),,helper,디바이스 측 API는 커널 언어의 일부라 호스트 ABI 재설계 범위 밖. 그대로 유지
+cudaUserObjectCreate,cuxGraphRetain,graph,merged,
+cudaUserObjectRelease,cuxRelease,object,merged,
+cuDeviceGet,cuxDeviceList,device,merged,
+cuDeviceGetAttribute,cuxDeviceQuery,device,merged,"정적 속성·capability(VMM, multicast, fabric, RDMA, TMA, cluster)를 구조체 하나로"
+cuDeviceGetCount,cuxDeviceList,device,merged,
+cuDeviceGetDevResource,cuxPartitionCreate,partition,merged,SM 수·work queue 설정을 descriptor로
+cuDeviceGetName,cuxDeviceQuery,device,merged,"정적 속성·capability(VMM, multicast, fabric, RDMA, TMA, cluster)를 구조체 하나로"
+cuDeviceGetPCIBusId,cuxDeviceQuery,device,merged,"정적 속성·capability(VMM, multicast, fabric, RDMA, TMA, cluster)를 구조체 하나로"
+cuDeviceGetUuid_v2,cuxDeviceQuery,device,merged,"정적 속성·capability(VMM, multicast, fabric, RDMA, TMA, cluster)를 구조체 하나로"
+cuDevicePrimaryCtxGetState,,,removed,사용자에게 보이는 context 없음. 모든 객체가 디바이스(또는 파티션)에 속함
+cuDevicePrimaryCtxRetain,,,removed,사용자에게 보이는 context 없음. 모든 객체가 디바이스(또는 파티션)에 속함
+cuDeviceTotalMem,cuxDeviceQuery,device,merged,"정적 속성·capability(VMM, multicast, fabric, RDMA, TMA, cluster)를 구조체 하나로"
+cuDevResourceGenerateDesc,cuxPartitionCreate,partition,merged,SM 수·work queue 설정을 descriptor로
+cuDevSmResourceSplit,cuxPartitionCreate,partition,merged,SM 수·work queue 설정을 descriptor로
+cuDevSmResourceSplitByCount,cuxPartitionCreate,partition,merged,SM 수·work queue 설정을 descriptor로
+cuDriverGetVersion,cuxGetApi,init,merged,테이블의 버전 필드 + 디바이스 capability 비트
+cuEventCreate,cuxFenceCreate,fence,merged,이벤트를 64-bit timeline fence로 통합 (timing·shareable은 descriptor)
+cuEventDestroy,cuxRelease,object,merged,
+cuEventElapsedTime,cuxFenceQuery,fence,merged,timing fence는 signal 시각을 함께 기록
+cuEventQuery,cuxFenceQuery,fence,merged,
+cuEventRecord,cuxEnqueueSignal,command,merged,큐에서 fence를 값 N으로 signal. 메모리 값 쓰기도 같은 명령
+cuEventSynchronize,cuxFenceWait,fence,merged,
+cuFuncGetAttribute,cuxKernelQuery,kernel,merged,
+cuFuncGetName,cuxKernelQuery,kernel,merged,
+cuFuncSetAttribute,cuxKernelSetAttr,kernel,merged,
+cuFuncSetCacheConfig,cuxKernelSetAttr,kernel,merged,
+cuGetErrorName,cuxGetErrorInfo,init,merged,
+cuGetErrorString,cuxGetErrorInfo,init,merged,
+cuGetProcAddress,cuxGetApi,init,merged,버전 지정 함수 테이블 한 번으로 심볼 해석 대체
+cuGraphAddKernelNode,cuxGraphAddNode,graph,merged,"노드 종류는 descriptor의 type, 의존성은 인자"
+cuGraphChildGraphNodeGetGraph,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cuGraphGetEdges,cuxGraphInspect,graph,merged,
+cuGraphGetNodes,cuxGraphInspect,graph,merged,
+cuGraphKernelNodeGetAttribute,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cuGraphKernelNodeGetParams,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cuGraphKernelNodeSetAttribute,cuxGraphUpdate,graph,merged,노드 descriptor를 바꾼 그래프로 exec 갱신
+cuGraphMemcpyNodeGetParams,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cuGraphMemsetNodeGetParams,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cuGraphNodeGetType,cuxGraphNodeQuery,graph,merged,노드 종류별 getter 대신 descriptor 하나를 돌려줌
+cuGreenCtxCreate,cuxPartitionCreate,partition,merged,SM 수·work queue 설정을 descriptor로
+cuGreenCtxDestroy,cuxRelease,object,merged,
+cuGreenCtxGetDevResource,cuxPartitionCreate,partition,merged,SM 수·work queue 설정을 descriptor로
+cuGreenCtxStreamCreate,cuxQueueCreate,queue,merged,descriptor의 partition 필드
+cuInit,cuxGetApi,init,merged,초기화는 API 테이블을 얻을 때 함께
+cuKernelGetFunction,cuxLibraryGetKernels,kernel,merged,이름 목록 또는 전체 나열
+cuKernelGetName,cuxKernelQuery,kernel,merged,
+cuKernelSetAttribute,cuxKernelSetAttr,kernel,merged,
+cuLaunchHostFunc,cuxEnqueueHostFn,command,merged,
+cuLaunchKernel,cuxEnqueueLaunch,command,merged,grid·block·smem·cluster·cooperative·PDL·priority를 launch descriptor로
+cuLaunchKernelEx,cuxEnqueueLaunch,command,merged,grid·block·smem·cluster·cooperative·PDL·priority를 launch descriptor로
+cuLibraryEnumerateKernels,cuxLibraryGetKernels,kernel,merged,이름 목록 또는 전체 나열
+cuLibraryGetGlobal,cuxGetGlobal,kernel,merged,
+cuLibraryGetKernel,cuxLibraryGetKernels,kernel,merged,이름 목록 또는 전체 나열
+cuLibraryGetKernelCount,cuxLibraryGetKernels,kernel,merged,이름 목록 또는 전체 나열
+cuLibraryLoadData,cuxLibraryLoad,kernel,merged,context 독립 library 하나로. 파일·메모리·JIT 옵션은 descriptor
+cuLibraryUnload,cuxRelease,object,merged,
+cuLogicalEndpointBindMem,cuxEndpointCreate,fabric,merged,ID 예약·생성·버퍼 바인딩을 descriptor 하나로
+cuLogicalEndpointCreate,cuxEndpointCreate,fabric,merged,ID 예약·생성·버퍼 바인딩을 descriptor 하나로
+cuLogicalEndpointDestroy,cuxRelease,object,merged,
+cuLogicalEndpointExport,cuxExport,object,merged,
+cuLogicalEndpointIdRelease,cuxRelease,object,merged,
+cuLogicalEndpointIdReserve,cuxEndpointCreate,fabric,merged,ID 예약·생성·버퍼 바인딩을 descriptor 하나로
+cuLogicalEndpointImport,cuxImport,object,merged,
+cuLogicalEndpointQuery,cuxEndpointQuery,fabric,merged,
+cuLogicalEndpointUnbind,cuxRelease,object,merged,
+cuLogsRegisterCallback,cuxSetLogCallback,init,merged,
+cuMemAddressFree,cuxRelease,object,merged,
+cuMemAddressReserve,cuxAddressReserve,memory,merged,
+cuMemAlloc,cuxPoolAlloc,pool,merged,"풀의 location(device/host/managed/mapped)으로 구분, queue=NULL이면 즉시 사용 가능"
+cuMemcpyAsync,cuxEnqueueCopy,command,merged,항상 배치. 항목마다 1D/2D·방향 자동 판별. 동기 복사는 헬퍼(enqueue + wait)
+cuMemcpyBatchAsync,cuxEnqueueCopy,command,merged,항상 배치. 항목마다 1D/2D·방향 자동 판별. 동기 복사는 헬퍼(enqueue + wait)
+cuMemcpyDtoD,cuxEnqueueCopy,command,merged,항상 배치. 항목마다 1D/2D·방향 자동 판별. 동기 복사는 헬퍼(enqueue + wait)
+cuMemcpyDtoH,cuxEnqueueCopy,command,merged,항상 배치. 항목마다 1D/2D·방향 자동 판별. 동기 복사는 헬퍼(enqueue + wait)
+cuMemcpyDtoHAsync,cuxEnqueueCopy,command,merged,항상 배치. 항목마다 1D/2D·방향 자동 판별. 동기 복사는 헬퍼(enqueue + wait)
+cuMemcpyHtoD,cuxEnqueueCopy,command,merged,항상 배치. 항목마다 1D/2D·방향 자동 판별. 동기 복사는 헬퍼(enqueue + wait)
+cuMemcpyHtoDAsync,cuxEnqueueCopy,command,merged,항상 배치. 항목마다 1D/2D·방향 자동 판별. 동기 복사는 헬퍼(enqueue + wait)
+cuMemCreate,cuxMemCreate,memory,merged,
+cuMemExportToShareableHandle,cuxExport,object,merged,legacy IPC와 VMM 공유를 handle type으로 통합
+cuMemFree,cuxPoolFree,pool,merged,
+cuMemFreeHost,cuxPoolFree,pool,merged,
+cuMemGetAddressRange,cuxPointerQuery,memory,merged,base·size·location·handle·디바이스 측 주소를 구조체 하나로
+cuMemGetAllocationGranularity,cuxDeviceQuery,device,merged,granularity는 디바이스 속성
+cuMemGetAllocationPropertiesFromHandle,cuxPointerQuery,memory,merged,base·size·location·handle·디바이스 측 주소를 구조체 하나로
+cuMemGetInfo,cuxDeviceMemInfo,device,merged,
+cuMemHostAlloc,cuxPoolAlloc,pool,merged,"풀의 location(device/host/managed/mapped)으로 구분, queue=NULL이면 즉시 사용 가능"
+cuMemHostGetDevicePointer,cuxPointerQuery,memory,merged,base·size·location·handle·디바이스 측 주소를 구조체 하나로
+cuMemHostRegister,cuxMemCreate,memory,merged,location=host-import (기존 host 메모리를 물리 메모리 객체로)
+cuMemHostUnregister,cuxRelease,object,merged,
+cuMemImportFromShareableHandle,cuxImport,object,merged,
+cuMemMap,cuxMemMap,memory,merged,매핑과 접근 권한을 한 호출로
+cuMemRelease,cuxRelease,object,merged,
+cuMemRetainAllocationHandle,cuxPointerQuery,memory,merged,base·size·location·handle·디바이스 측 주소를 구조체 하나로
+cuMemSetAccess,cuxMemMap,memory,merged,매핑과 접근 권한을 한 호출로
+cuMemsetD32,cuxEnqueueFill,command,merged,"항목마다 원소 크기(1/2/4 B) 지정, 배치"
+cuMemsetD32Async,cuxEnqueueFill,command,merged,"항목마다 원소 크기(1/2/4 B) 지정, 배치"
+cuMemsetD8,cuxEnqueueFill,command,merged,"항목마다 원소 크기(1/2/4 B) 지정, 배치"
+cuMemsetD8Async,cuxEnqueueFill,command,merged,"항목마다 원소 크기(1/2/4 B) 지정, 배치"
+cuMemUnmap,cuxMemUnmap,memory,merged,
+cuModuleGetFunction,cuxLibraryGetKernels,kernel,merged,이름 목록 또는 전체 나열
+cuModuleGetGlobal,cuxGetGlobal,kernel,merged,
+cuModuleLoad,cuxLibraryLoad,kernel,merged,context 독립 library 하나로. 파일·메모리·JIT 옵션은 descriptor
+cuModuleLoadData,cuxLibraryLoad,kernel,merged,context 독립 library 하나로. 파일·메모리·JIT 옵션은 descriptor
+cuModuleLoadDataEx,cuxLibraryLoad,kernel,merged,context 독립 library 하나로. 파일·메모리·JIT 옵션은 descriptor
+cuModuleUnload,cuxRelease,object,merged,
+cuMulticastAddDevice,cuxMulticastCreate,fabric,merged,참여 디바이스 목록을 descriptor로
+cuMulticastBindMem,cuxMulticastBind,fabric,merged,mem=NULL이면 unbind
+cuMulticastCreate,cuxMulticastCreate,fabric,merged,참여 디바이스 목록을 descriptor로
+cuMulticastGetGranularity,cuxDeviceQuery,device,merged,multicast granularity도 디바이스 속성
+cuMulticastUnbind,cuxMulticastBind,fabric,merged,mem=NULL이면 unbind
+cuOccupancyMaxActiveBlocksPerMultiprocessor,cuxKernelQuery,kernel,merged,launch descriptor를 넘기면 occupancy 결과를 함께 계산
+cuOccupancyMaxPotentialBlockSize,cuxKernelQuery,kernel,merged,launch descriptor를 넘기면 occupancy 결과를 함께 계산
+cuOccupancyMaxPotentialClusterSize,cuxKernelQuery,kernel,merged,launch descriptor를 넘기면 occupancy 결과를 함께 계산
+cuPointerGetAttribute,cuxPointerQuery,memory,merged,base·size·location·handle·디바이스 측 주소를 구조체 하나로
+cuStreamCreate,cuxQueueCreate,queue,merged,flags·priority·partition을 descriptor로
+cuStreamDestroy,cuxRelease,object,merged,
+cuStreamSynchronize,cuxFenceWait,fence,merged,큐마다 내장 timeline fence에 대기
+cuStreamWaitEvent,cuxEnqueueWait,command,merged,큐가 fence 값 N까지 대기
+cuStreamWaitValue32,cuxEnqueueWait,command,merged,큐가 fence 값 N까지 대기
+cuStreamWriteValue32,cuxEnqueueSignal,command,merged,큐에서 fence를 값 N으로 signal. 메모리 값 쓰기도 같은 명령
+cuTensorMapEncodeTiled,cuxTensorMapEncode,kernel,merged,
